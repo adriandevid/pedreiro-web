@@ -1,0 +1,31 @@
+
+services:
+ 
+ tes44332424dsfsdf34:
+    image: 
+    container_name: 
+    restart: always
+    command: 
+    
+        
+                     - "--api=true" 
+      - "--api.dashboard=true" 
+      - "--api.insecure=false" 
+      - "--providers.file.filename=/etc/traefik/traefik.dynamic.yaml" 
+ #[command]
+                
+                
+
+                
+                
+            
+        
+    networks:
+        - web
+ #[content]
+        
+        
+              
+networks:
+  web:
+    external: false

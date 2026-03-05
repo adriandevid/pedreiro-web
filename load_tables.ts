@@ -1,4 +1,33 @@
+
 import Database from "better-sqlite3";
+import fs from 'fs';
+
+if (!fs.existsSync(`./configuration`)) {
+    fs.mkdirSync(`./configuration`);
+    console.log(`Folder ./configuration created.`);
+}
+
+if (!fs.existsSync(`./configuration/applications/`)) {
+    fs.mkdirSync(`./configuration/applications/`);
+    console.log(`Folder ./configuration/applications/ created.`);
+}
+
+const data = new Uint8Array(Buffer.from(`
+services:
+
+networks:
+  web:
+    external: false
+`));
+
+if (!fs.existsSync(`./configuration/docker-compose.yml`)) {
+    fs.writeFile(`./configuration/docker-compose.yml`, data, (err) => {
+        if (err) throw err;
+        console.log('The file has been saved!');
+    });
+    console.log(`Folder ./configuration/docker-compose.yml created.`);
+}
+
 
 const localdatabase = new Database('./src/infrastructure/database/mydatabase.db', { verbose: console.log });
 

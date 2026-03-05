@@ -16,7 +16,6 @@ export type Application = {
   container_port: number
   replicas: number         // default 1
   configuration_id: number
-  files: ApplicationFile[]
 }
 
 export type ApplicationFile = {
@@ -26,8 +25,10 @@ export type ApplicationFile = {
   application_id: number
 }
 
-export type ApplicationCreate = Omit<Application, "id">
-
+export type ApplicationFileCreate = Omit<ApplicationFile, "id">
+export type ApplicationCreate = Omit<Application, "id"> & {
+  files: ApplicationFileCreate[]
+}
 
 export type Configuration = {
   id: number

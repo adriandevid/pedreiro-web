@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@xyflow/react": "^12.10.1",
+    "babel-plugin-react-compiler": "^1.0.0",
     "better-sqlite3": "^12.6.2",
     "lucide-react": "^0.575.0",
     "modern-screenshot": "^4.6.8",

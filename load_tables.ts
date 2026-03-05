@@ -41,7 +41,7 @@ localdatabase.exec(`
         --deployment
         container_name varchar not null,
         image varchar not null,
-        image_pull_policy varchar(100),
+        image_pull_policy varchar(100) not null default 'Always',
         container_port integer not null,
         replicas integer not null default 1,
         configuration_id integer not null,

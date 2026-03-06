@@ -1,35 +1,7 @@
 services:
-  
-  string16: 
-    image: string 
-    container_name: string 
-    restart: always 
-    commands: 
-      - asdasd 
-    volumes: 
-    networks: 
-      - web 
-    labels: 
-    environments: 
-    environment: 
 
-
-  string17: 
-    image: string 
-    container_name: string 
-    command: [a, b] 
-    restart: always 
-    commands: 
-      - asdasd 
-    volumes: 
-    networks: 
-      - web 
-    labels: 
-    environments: 
-    environment: 
 
 #[content]
-        
         
 networks:
   web:

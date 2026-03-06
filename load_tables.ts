@@ -74,7 +74,7 @@ localdatabase.exec(`
         container_port integer not null,
         replicas integer not null default 1,
         configuration_id integer not null,
-        constraint configuration_id_c foreign key (configuration_id) references configuration(id)
+        constraint configuration_id_c foreign key (configuration_id) references configuration(id) on delete cascade
     );
 
     create table application_files(
@@ -82,7 +82,7 @@ localdatabase.exec(`
         name varchar(100) not null,
         file text not null,
         application_id integer not null,
-        constraint application_id_c foreign key (application_id) references application(id)
+        constraint application_id_c foreign key (application_id) references application(id) on delete cascade
     );
 
     create table infrastructure_component(
@@ -94,40 +94,40 @@ localdatabase.exec(`
         command text null,
         restart varchar(100) not null default 'always',
         configuration_id integer not null,
-        constraint configuration_id_c foreign key (configuration_id) references configuration(id)
+        constraint configuration_id_c foreign key (configuration_id) references configuration(id) on delete cascade
     );
 
     create table infrastructure_component_command(
         id integer primary key autoincrement,
         command varchar not null,
         infrastructure_component_id integer not null,
-        constraint infrastructure_component_id_c foreign key (infrastructure_component_id) references infrastructure_component(id)
+        constraint infrastructure_component_id_c foreign key (infrastructure_component_id) references infrastructure_component(id) on delete cascade
     );
     create table infrastructure_component_port(
         id integer primary key autoincrement,
         port_bind varchar not null,
         infrastructure_component_id integer not null,
-        constraint infrastructure_component_id_c foreign key (infrastructure_component_id) references infrastructure_component(id)
+        constraint infrastructure_component_id_c foreign key (infrastructure_component_id) references infrastructure_component(id) on delete cascade
     );
     create table infrastructure_component_volumes(
         id integer primary key autoincrement,
         volume varchar not null,
         infrastructure_component_id integer not null,
-        constraint infrastructure_component_id_c foreign key (infrastructure_component_id) references infrastructure_component(id)
+        constraint infrastructure_component_id_c foreign key (infrastructure_component_id) references infrastructure_component(id) on delete cascade
     );
 
     create table infrastructure_component_network(
         id integer primary key autoincrement,
         network varchar not null,
         infrastructure_component_id integer not null,
-        constraint infrastructure_component_id_c foreign key (infrastructure_component_id) references infrastructure_component(id)
+        constraint infrastructure_component_id_c foreign key (infrastructure_component_id) references infrastructure_component(id) on delete cascade
     );
 
     create table infrastructure_component_labels(
         id integer primary key autoincrement,
         label varchar not null,
         infrastructure_component_id integer not null,
-        constraint infrastructure_component_id_c foreign key (infrastructure_component_id) references infrastructure_component(id)
+        constraint infrastructure_component_id_c foreign key (infrastructure_component_id) references infrastructure_component(id) on delete cascade
     );
 
     create table infrastructure_component_environment(
@@ -135,7 +135,7 @@ localdatabase.exec(`
         environment_name varchar not null,
         environment_value varchar not null,
         infrastructure_component_id integer not null,
-        constraint infrastructure_component_id_c foreign key (infrastructure_component_id) references infrastructure_component(id)
+        constraint infrastructure_component_id_c foreign key (infrastructure_component_id) references infrastructure_component(id) on delete cascade
     );
 
 

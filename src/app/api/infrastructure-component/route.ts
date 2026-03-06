@@ -126,7 +126,9 @@ async function POST(request: NextRequest) {
     readFile("./configuration/docker-compose.yml", (content: string) => {
         var result = content;
         result = result.replace("#[content]", `
+#start ${lastInfrastructureComponentQueryResult.service_key}
 ${ymlDocumentResult}
+#end ${lastInfrastructureComponentQueryResult.service_key}
 #[content]
         `)
 

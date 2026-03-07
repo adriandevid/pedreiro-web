@@ -7,11 +7,11 @@ type InfrastructureComponent = {
     restart: string          // default 'always'
     configuration_id: number,
     commands: any[]
-    ports: { description: string }[]
-    volumes: { description: string }[]
-    networks: { description: string }[]
-    labels: { description: string }[]
-    environments: { description: string }[]
+    ports: any[]
+    volumes: any[]
+    networks: any[]
+    labels: any[]
+    environments: any[]
 }
 type Mapper = {
     [key: string]: string

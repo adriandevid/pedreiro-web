@@ -1,7 +1,59 @@
 import { localdatabase } from "@pedreiro-web/infrastructure/database/config";
-import { Application } from "@pedreiro-web/infrastructure/repository/types";
+import { Application, ApplicationFile, ApplicationUpdate } from "@pedreiro-web/infrastructure/repository/types";
 import { deleteFolder } from "@pedreiro-web/util/file";
 import { NextRequest, NextResponse } from "next/server";
+
+
+async function PUT(request: NextRequest, { params }: { params: Promise<{ id: number }> }) {
+    const { id } = await params;
+    const body: ApplicationUpdate = await request.json();
+    const row = localdatabase.prepare(`select * from application where id = ${id}`).all();
+    if (row.length == 0) {
+        return NextResponse.json({ message: "Código não existe!" }, { status: 400 })
+    }
+
+    localdatabase.exec(`
+        update application
+        set name = '${body.name}', port = ${body.port}, node_port = ${body.node_port}, target_port = ${body.target_port}, container_name = '${body.container_name}', image = '${body.image}', container_port = ${body.container_port}, replicas = ${body.replicas}
+        where id = ${id}
+    `)
+
+    if (body.files != undefined && body.files.length > 0) {
+        body.files.forEach(element => {
+            if (element.id != 0 && element.id) {
+                localdatabase.exec(`
+                    update application_files
+                    values name = '${element.name}', file = '${element.file}'
+                    where id = ${element.id}
+                `)
+                return;
+            }
+            localdatabase.exec(`
+                    insert into application_files(name, file, application_id)
+                    values ('${element.name}', '${element.file}', ${id})    
+                `)
+        });
+
+
+        var files = localdatabase.prepare(`select * from application_files where application_id = ${id}`).all() as ApplicationFile[];
+        files.forEach(file => {
+            if (body.files.filter(x => x.id == file.id).length == 0) {
+                localdatabase.exec(`
+                    DELETE FROM application_files
+                    WHERE id = ${file.id};
+                `)
+            }
+        })
+
+        const row = localdatabase.prepare(`select * from application_files where application_id = ${id}`).all()
+        const applicationFilesCreatedResult: ApplicationFile[] = row as ApplicationFile[];
+
+        return NextResponse.json({
+            ...row[0] as ApplicationUpdate,
+            files: applicationFilesCreatedResult
+        }, { status: 200 })
+    }
+}
 
 async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: number }> }) {
     const { id } = await params;
@@ -17,4 +69,4 @@ async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ status: 200 })
 }
 
-export { DELETE }
+export { DELETE, PUT }

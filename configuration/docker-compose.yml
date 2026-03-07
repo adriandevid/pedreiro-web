@@ -1,8 +1,36 @@
-services:
+services: 
+#start string11
+  string11: 
+    image: string 
+    container_name: string 
+    restart: always 
+    commands: 
+      - -- test 
+    volumes: 
+    networks: 
+    labels: 
+    environments: 
+    environment: 
+
+#end string11
 
 
+
+#start string13
+  string13: 
+    image: string 
+    container_name: string 
+    restart: always 
+    commands: 
+      - -- test 
+    volumes: 
+    networks: 
+    labels: 
+    environments: 
+    environment: 
+
+#end string13
 #[content]
-        
 networks:
   web:
     external: false

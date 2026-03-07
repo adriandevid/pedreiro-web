@@ -29,6 +29,9 @@ export type ApplicationFileCreate = Omit<ApplicationFile, "id">
 export type ApplicationCreate = Omit<Application, "id"> & {
   files: ApplicationFileCreate[]
 }
+export type ApplicationUpdate = Application & {
+  files: ApplicationFile[]
+}
 
 export type Configuration = {
   id: number

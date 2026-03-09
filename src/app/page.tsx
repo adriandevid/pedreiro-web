@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef, useActionState, startTransition } from 'react';
 import {
   Server,
   Box,
@@ -32,107 +32,13 @@ import {
 } from 'lucide-react';
 import domtoimage from "dom-to-image-more";
 import { domToPng } from 'modern-screenshot';
+import CustomNode from '@pedreiro-web/components/ui/customNode';
+import { Application, ApplicationCreate, ApplicationValidator } from '@pedreiro-web/infrastructure/repository/types/application';
+import Create from './actions/application/create';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { SubmitHandler, useForm } from 'react-hook-form';
+import { Edge } from '@pedreiro-web/infrastructure/repository/types';
 
-// --- Componentes de UI Auxiliares ---
-
-const StatusBadge = ({ active }: any) => (
-  <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${active ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-500'
-    }`}>
-    <div className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`}></div>
-    {active ? 'ATIVO' : 'OFFLINE'}
-  </div>
-);
-
-// --- Componente de Node Customizado e Arrastável ---
-
-const CustomNode = ({ node, isSelected, onClick, onDrag, onStartConnect, onEndConnect }: any) => {
-  const { id, type, data, position } = node;
-  const isDragging = useRef(false);
-  const startPos = useRef({ x: 0, y: 0 });
-
-  const getIcon = () => {
-    if (type === 'container') return <Box size={16} className="text-cyan-400" />;
-    if (type === 'service') return <Server size={16} className="text-blue-600" />;
-
-    switch (data.subType) {
-      case 'redis': return <Zap size={16} className="text-red-500" />;
-      case 'mq': return <Share2 size={16} className="text-purple-500" />;
-      default: return <Database size={16} className="text-amber-600" />;
-    }
-  };
-
-  const themes: any = {
-    service: "border-blue-500 bg-white text-slate-800",
-    container: "border-cyan-400 bg-slate-800 text-white",
-    database: "border-amber-500 bg-amber-50 text-slate-800"
-  };
-
-  const handleMouseDown = (e: any) => {
-    if (e.button !== 0) return;
-    if (e.target.closest('.handle')) return; // Não arrasta se clicar no conector
-
-    e.stopPropagation();
-    isDragging.current = true;
-    startPos.current = { x: e.clientX - position.x, y: e.clientY - position.y };
-    onClick(id);
-
-    const handleMouseMove = (moveEvent: any) => {
-      if (!isDragging.current) return;
-      const newX = moveEvent.clientX - startPos.current.x;
-      const newY = moveEvent.clientY - startPos.current.y;
-      onDrag(id, newX, newY);
-    };
-
-    const handleMouseUp = () => {
-      isDragging.current = false;
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  };
-
-  return (
-    <div
-      onMouseDown={handleMouseDown}
-      onMouseUp={() => onEndConnect(id)}
-      style={{
-        transform: `translate(${position.x}px, ${position.y}px)`,
-        transition: isDragging.current ? 'none' : 'transform 0.1s ease-out'
-      }}
-      className={`absolute cursor-move p-3 rounded-xl border-2 shadow-lg min-w-[180px] group select-none ${themes[type]} ${isSelected ? 'ring-4 ring-cyan-500/30 z-20 scale-105' : 'hover:border-slate-400 z-10'}`}
-    >
-      <div className="flex items-center justify-between mb-2 pointer-events-none">
-        <div className="flex items-center gap-2">
-          <div className={`p-1.5 rounded-lg ${type === 'container' ? 'bg-slate-700' : 'bg-white/80 shadow-sm'}`}>
-            {getIcon()}
-          </div>
-          <span className="text-xs font-bold uppercase tracking-tight">{data.label}</span>
-        </div>
-        <StatusBadge active={true} />
-      </div>
-
-      <div className={`text-[10px] font-mono mt-2 p-1.5 rounded pointer-events-none ${type === 'container' ? 'bg-black/20 text-cyan-200' : 'bg-slate-100 text-slate-500'}`}>
-        {type === 'container' ? `image: ${data.image}` : `port: ${data.port || 'default'}`}
-      </div>
-
-      {/* Handles de conexão */}
-      <div
-        onMouseDown={(e) => { e.stopPropagation(); onStartConnect(id, 'left'); }}
-        className="handle absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white border-2 border-slate-300 hover:border-cyan-500 cursor-crosshair z-30 flex items-center justify-center transition-colors"
-      >
-        <div className="w-1 h-1 bg-slate-300 rounded-full group-hover:bg-cyan-500"></div>
-      </div>
-      <div
-        onMouseDown={(e) => { e.stopPropagation(); onStartConnect(id, 'right'); }}
-        className="handle absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white border-2 border-slate-300 hover:border-cyan-500 cursor-crosshair z-30 flex items-center justify-center transition-colors"
-      >
-        <div className="w-1 h-1 bg-slate-300 rounded-full group-hover:bg-cyan-500"></div>
-      </div>
-    </div>
-  );
-};
 
 // --- Aplicação Principal ---
 
@@ -145,12 +51,7 @@ export default function App() {
   const [showExportMenu, setShowExportMenu] = useState<boolean>(false);
 
   // Estado dos Nodes para permitir movimento
-  const [nodes, setNodes] = useState<any[]>([
-    { id: 'node-ingress', type: 'service', data: { label: 'Ingress LB', port: '443', uptime: '12d', cpu: '5%' }, position: { x: 300, y: 40 } },
-    { id: 'node-api', type: 'container', data: { label: 'Backend API', image: 'node:18-alpine', uptime: '4h', cpu: '24%' }, position: { x: 80, y: 180 } },
-    { id: 'node-web', type: 'container', data: { label: 'Frontend App', image: 'nginx:stable', uptime: '4h', cpu: '12%' }, position: { x: 520, y: 180 } },
-    { id: 'node-db', type: 'database', data: { label: 'PostgreSQL', port: '5432', uptime: '30d', cpu: '8%' }, position: { x: 300, y: 340 } },
-  ]);
+  const [nodes, setNodes] = useState<any[]>([]);
 
   const selectedNode = useMemo(() => nodes.find(n => n.id === selectedNodeId), [nodes, selectedNodeId]);
 
@@ -165,7 +66,39 @@ export default function App() {
     setCode(fileTemplates[activeFile]);
   }, [activeFile, fileTemplates]);
 
+  const updatePosition = async (code: number, content: { position_x: number, position_y: number }) => {
+    const responseRequest = await fetch(`${window.location.href}/api/applications/${code}/update-position`, {
+      method: "PUT",
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(content)
+    })
+
+    const responseResult: Application = await responseRequest.json();
+    return responseResult;
+  }
+
+  const createEdge = async (content: { source_id: number, target_id: number }) => {
+    const responseRequest = await fetch(`${window.location.href}/api/edges/`, {
+      method: "POST",
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(content)
+    })
+
+    const responseResult: Edge = await responseRequest.json();
+    return responseResult;
+  }
+
+  const listEdges = async () => {
+    const responseRequest = await fetch(`${window.location.href}/api/edges`, {
+      method: "GET"
+    })
+
+    const responseResult: Edge[] = await responseRequest.json();
+    return responseResult;
+  }
+
   const handleNodeDrag = (id: any, x: any, y: any) => {
+    updatePosition(nodes.filter(x => x.id == id)[0].code, { position_x: x, position_y: y });
     setNodes(prev => prev.map(node => node.id === id ? { ...node, position: { x, y } } : node));
   };
 
@@ -217,11 +150,7 @@ export default function App() {
     });
   };
 
-  const [edges, setEdges] = useState([
-    { id: 'e1', source: 'node-ingress', target: 'node-api' },
-    { id: 'e2', source: 'node-ingress', target: 'node-web' },
-    { id: 'e3', source: 'node-api', target: 'node-db' }
-  ]);
+  const [edges, setEdges] = useState<any[]>([]);
   const [tempEdge, setTempEdge] = useState<any>(null);
 
   // Funções de Conexão
@@ -238,6 +167,7 @@ export default function App() {
           source: tempEdge.sourceId,
           target: targetId
         };
+        createEdge({ source_id: tempEdge.sourceId, target_id: targetId })
         setEdges(prev => [...prev, newEdge]);
         showNotify("Nova conexão estabelecida");
       }
@@ -257,9 +187,9 @@ export default function App() {
   };
 
   const MapInterator = () => (
-    <div 
-      ref={canvasRef} 
-      className="relative w-full h-full"  
+    <div
+      ref={canvasRef}
+      className="relative w-full h-full"
       onMouseMove={handleMouseMoveCanvas}
       onMouseUp={() => setTempEdge(null)}
     >
@@ -358,6 +288,133 @@ export default function App() {
     'service.yml': `apiVersion: v1\nkind: Service\nmetadata:\n  name: api-service\nspec:\n  selector:\n    app: backend-api\n  ports:\n    - protocol: TCP\n      port: 80\n      targetPort: 5000`
   });
 
+  const [state, formAction, pending] = useActionState(Create, { status: 200 });
+
+  const propsFormCreateApplication = useForm<ApplicationCreate>({
+    resolver: zodResolver(ApplicationValidator),
+    defaultValues: {
+      type: "NodePort",
+      protocol: "TCP",
+      replicas: "1",
+      image_pull_policy: 'Always',
+      position_x: 200 + Math.random() * 200,
+      position_y: 200 + Math.random() * 100
+    }
+  });
+
+  useEffect(function () {
+    listEdges().then(r => {
+      setEdges(r.map(edge => {
+        const newEdge = {
+          id: `e-${Date.now()}`,
+          source: edge.source_id,
+          target: edge.target_id
+        };
+
+        return newEdge;
+      }));
+    })
+    fetch(`${window.location.href}/api/applications`, {
+      method: "GET"
+    }).then(async function (e) {
+      var response: Application[] = await e.json();
+      response.forEach(result => {
+        const serviceId = `node-${result.name.toLowerCase().replace(/\s+/g, '-')}`;
+
+        // Configuração do novo Node com base no tipo
+        const newNode = {
+          id: serviceId,
+          code: result.id,
+          // Se for WEB, usa 'container' (estilo escuro do Backend API)
+          // type: state.data.type === 'web' ? 'container' : 'database',
+          type: "container",
+          data: {
+            label: result.name,
+            image: result.image,
+            port: result.port,
+            // subType: formData.type === 'web' ? 'api' : formData.subType,
+            subType: "container",
+            uptime: '0h',
+            cpu: '0%'
+          },
+          position: { x: result.position_x, y: result.position_y }
+        };
+
+        const composeEntry = `\n  ${result.name.toLowerCase()}:\n    image: ${result.image}\n    ports:\n      - "${result.port}:${result.port}"`;
+
+        setFileContents(prev => {
+          const updated: any = { ...prev };
+          updated['docker-compose.yml'] = prev['docker-compose.yml'] + composeEntry;
+
+          // if (formData.type === 'web') {
+
+          // }
+          updated[`${result.name.toLowerCase()}-deployment.yml`] = `apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: ${result.name.toLowerCase()}-deployment\nspec:\n  replicas: ${result.replicas}\n  selector:\n    matchLabels:\n      app: ${result.name.toLowerCase()}\n  template:\n    metadata:\n      labels:\n        app: ${result.name.toLowerCase()}\n    spec:\n      containers:\n      - name: ${result.name.toLowerCase()}\n        image: ${result.image}`;
+          updated[`${result.name.toLowerCase()}-service.yml`] = `apiVersion: v1\nkind: Service\nmetadata:\n  name: ${result.name.toLowerCase()}-service\nspec:\n  selector:\n    app: ${result.name.toLowerCase()}\n  ports:\n    - protocol: TCP\n      port: 80\n      targetPort: ${result.port}`;
+
+          return updated;
+        });
+
+        setNodes((prev: any) => [...prev, newNode]);
+      });
+    })
+  }, [])
+
+  useEffect(function () {
+    if (state.status == 200) {
+      setShowAddModal(false);
+
+      if (state.data) {
+        const serviceId = `node-${state.data.name.toLowerCase().replace(/\s+/g, '-')}`;
+
+        // Configuração do novo Node com base no tipo
+        const newNode = {
+          id: serviceId,
+          // Se for WEB, usa 'container' (estilo escuro do Backend API)
+          // type: state.data.type === 'web' ? 'container' : 'database',
+          type: "container",
+          data: {
+            label: state.data.name,
+            image: state.data.image,
+            port: state.data.port,
+            // subType: formData.type === 'web' ? 'api' : formData.subType,
+            subType: "container",
+            uptime: '0h',
+            cpu: '0%'
+          },
+          position: { x: state.data.position_x, y: state.data.position_y }
+        };
+
+        const composeEntry = `\n  ${state.data.name.toLowerCase()}:\n    image: ${state.data.image}\n    ports:\n      - "${state.data.port}:${state.data.port}"`;
+
+        setFileContents(prev => {
+          const updated: any = { ...prev };
+          updated['docker-compose.yml'] = prev['docker-compose.yml'] + composeEntry;
+
+          // if (formData.type === 'web') {
+
+          // }
+          updated[`${state.data.name.toLowerCase()}-deployment.yml`] = `apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: ${state.data.name.toLowerCase()}-deployment\nspec:\n  replicas: ${state.data.replicas}\n  selector:\n    matchLabels:\n      app: ${state.data.name.toLowerCase()}\n  template:\n    metadata:\n      labels:\n        app: ${state.data.name.toLowerCase()}\n    spec:\n      containers:\n      - name: ${state.data.name.toLowerCase()}\n        image: ${state.data.image}`;
+          updated[`${state.data.name.toLowerCase()}-service.yml`] = `apiVersion: v1\nkind: Service\nmetadata:\n  name: ${state.data.name.toLowerCase()}-service\nspec:\n  selector:\n    app: ${state.data.name.toLowerCase()}\n  ports:\n    - protocol: TCP\n      port: 80\n      targetPort: ${state.data.port}`;
+
+          return updated;
+        });
+
+        setNodes((prev: any) => [...prev, newNode]);
+        setShowAddModal(false);
+        propsFormCreateApplication.reset({
+          type: "NodePort",
+          protocol: "TCP",
+          replicas: "1",
+          image_pull_policy: 'Always',
+          position_x: 200 + Math.random() * 200,
+          position_y: 200 + Math.random() * 100
+        });
+        showNotify(`Serviço ${state.data.name} registrado!`);
+      }
+    }
+  }, [state])
+
   const handleAddService = (e: any) => {
     e.preventDefault();
     const serviceId = `node-${formData.name.toLowerCase().replace(/\s+/g, '-')}`;
@@ -410,14 +467,14 @@ export default function App() {
       {/* Modal de Cadastro */}
       {showAddModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-300">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-300">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <h3 className="text-lg font-bold flex items-center gap-2">
                 <PlusCircle className="text-cyan-500" size={20} /> Novo Registro
               </h3>
               <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
             </div>
-            <form onSubmit={handleAddService} className="p-6 space-y-4">
+            <form className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl mb-2">
                 <button type="button" onClick={() => setFormData({ ...formData, type: 'web' })} className={`py-2 px-4 rounded-lg text-xs font-bold transition-all ${formData.type === 'web' ? 'bg-white text-cyan-600 shadow-sm' : 'text-slate-500'}`}>SERVIÇO WEB (API)</button>
                 <button type="button" onClick={() => setFormData({ ...formData, type: 'infra' })} className={`py-2 px-4 rounded-lg text-xs font-bold transition-all ${formData.type === 'infra' ? 'bg-white text-cyan-600 shadow-sm' : 'text-slate-500'}`}>INFRAESTRUTURA</button>
@@ -438,30 +495,85 @@ export default function App() {
                 </div>
               )}
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Nome do Serviço</label>
-                <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium" placeholder="Ex: Auth-Service" />
-              </div>
+              {
+                formData.type === 'web' && (
+                  <div className='max-h-[400px] overflow-y-auto flex flex-col gap-4 px-2'>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Nome do Serviço</label>
+                      <input required {...propsFormCreateApplication.register("name")} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium" placeholder="Ex: Auth-Service" />
+                      {propsFormCreateApplication.formState.errors.name && (<p className='text-[12px] text-red-500 font-bold'>{propsFormCreateApplication.formState.errors.name?.message}</p>)}
+                    </div>
+                    <p className='text-[12px] font-bold text-slate-600 uppercase ml-1'>Configurações de Servico: </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Porta Principal</label>
+                        <input required {...propsFormCreateApplication.register("port")} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium" placeholder="Ex: 8080" />
+                        <p className="text-[10px]">Porta do SERVICE dentro do cluster.</p>
+                        {propsFormCreateApplication.formState.errors.port && (<p className='text-[12px] text-red-500 font-bold'>{propsFormCreateApplication.formState.errors.port?.message}</p>)}
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Porta do Nó</label>
+                        <input required {...propsFormCreateApplication.register("node_port")} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium" placeholder="Ex: 8080" />
+                        <p className="text-[10px]">Porta exposta em cada NODE do cluster. Permite acesso externo ao cluster.  (padrão: 30000-32767)</p>
+                        {propsFormCreateApplication.formState.errors.node_port && (<p className='text-[12px] text-red-500 font-bold'>{propsFormCreateApplication.formState.errors.node_port?.message}</p>)}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Porta Corrente</label>
+                        <input required {...propsFormCreateApplication.register("target_port")} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium" placeholder="Ex: 8080" />
+                        <p className="text-[10px]">Porta do container (Pod) para onde o tráfego será encaminhado.</p>
+                        {propsFormCreateApplication.formState.errors.target_port && (<p className='text-[12px] text-red-500 font-bold'>{propsFormCreateApplication.formState.errors.target_port?.message}</p>)}
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Protocolo</label>
+                        <input required {...propsFormCreateApplication.register("protocol")} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium" placeholder="Ex: 8080" />
+                        <p className="text-[10px]">Porta do container (Pod) para onde o tráfego será encaminhado.</p>
+                        {propsFormCreateApplication.formState.errors.protocol && (<p className='text-[12px] text-red-500 font-bold'>{propsFormCreateApplication.formState.errors.protocol?.message}</p>)}
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Tipo de exposição</label>
+                        <input required {...propsFormCreateApplication.register("type")} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium" placeholder="Ex: 8080" />
+                        <p className="text-[10px]">Define como o Service será exposto na rede.</p>
+                        {propsFormCreateApplication.formState.errors.type && (<p className='text-[12px] text-red-500 font-bold'>{propsFormCreateApplication.formState.errors.type?.message}</p>)}
+                      </div>
+                    </div>
+                    <p className='text-[12px] font-bold text-slate-600 uppercase ml-1'>Configurações de Publicação: </p>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Imagem Docker: </label>
+                      <input required {...propsFormCreateApplication.register("image")} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium font-mono" placeholder="Ex: node:18-alpine" />
+                      {propsFormCreateApplication.formState.errors.image && (<p className='text-[12px] text-red-500 font-bold'>{propsFormCreateApplication.formState.errors.image?.message}</p>)}
+                    </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Imagem Docker</label>
-                <input required value={formData.image} onChange={e => setFormData({ ...formData, image: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium font-mono" placeholder="Ex: node:18-alpine" />
-              </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Nome do container: </label>
+                      <input required {...propsFormCreateApplication.register("container_name")} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium font-mono" placeholder="Ex: teste" />
+                      {propsFormCreateApplication.formState.errors.container_name && (<p className='text-[12px] text-red-500 font-bold'>{propsFormCreateApplication.formState.errors.container_name?.message}</p>)}
+                    </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Porta Principal</label>
-                  <input required value={formData.port} onChange={e => setFormData({ ...formData, port: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium" placeholder="Ex: 8080" />
-                </div>
-                {formData.type === 'web' && (
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Réplicas (K8s)</label>
-                    <input type="number" min="1" value={formData.replicas} onChange={e => setFormData({ ...formData, replicas: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium" />
+                    <div className='grid grid-cols-2 gap-4'>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Réplicas (K8s)</label>
+                        <input type="number" min="1" {...propsFormCreateApplication.register("replicas")} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium" />
+                        {propsFormCreateApplication.formState.errors.replicas && (<p className='text-[12px] text-red-500 font-bold'>{propsFormCreateApplication.formState.errors.replicas?.message}</p>)}
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Politica de construção do container</label>
+                        <input required {...propsFormCreateApplication.register("image_pull_policy")} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium" placeholder="Ex: 8080" />
+                        <p className="text-[10px]">define quando o kubelet deve baixar a imagem do container do registry.</p>
+                        {propsFormCreateApplication.formState.errors.image_pull_policy && (<p className='text-[12px] text-red-500 font-bold'>{propsFormCreateApplication.formState.errors.image_pull_policy?.message}</p>)}
+                      </div>
+                    </div>
                   </div>
                 )}
-              </div>
 
-              <button type="submit" className="w-full py-3 mt-4 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-cyan-100 flex items-center justify-center gap-2">
+              <button type="button" onClick={async () => {
+                if (await propsFormCreateApplication.trigger()) {
+                  startTransition(() => {
+                    formAction(propsFormCreateApplication.watch());
+                  });
+                }
+              }} className="w-full py-3 mt-4 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-cyan-100 flex items-center justify-center gap-2">
                 <Save size={18} /> Salvar no Cluster
               </button>
             </form>

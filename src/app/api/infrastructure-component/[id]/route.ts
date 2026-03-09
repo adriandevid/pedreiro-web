@@ -1,5 +1,5 @@
 import { localdatabase } from "@pedreiro-web/infrastructure/database/config";
-import { InfrastructureComponentCommand, InfrastructureComponentEnvironment, InfrastructureComponentLabel, InfrastructureComponentNetwork, InfrastructureComponentPort, InfrastructureComponentVolume } from "@pedreiro-web/infrastructure/repository/types";
+import { InfrastructureComponentCommand, InfrastructureComponentEnvironment, InfrastructureComponentLabel, InfrastructureComponentNetwork, InfrastructureComponentPort, InfrastructureComponentVolume } from "@pedreiro-web/infrastructure/repository/types/infrastructure-component";
 import { createFile, readFile } from "@pedreiro-web/util/file";
 import { normalizeQuery } from "@pedreiro-web/util/normalizeQuery";
 import { NextRequest, NextResponse } from "next/server";
@@ -216,12 +216,14 @@ async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: 
 
     readFile("./configuration/docker-compose.yml", (content: string) => {
         var result = content;
+         
+        result = result.replace(/services:[\s\S]*?#start/g, "services:\n#start")
+
         result = result.replace(
             new RegExp(`#start ${infrastructureComponentResult.service_key}[\\s\\S]*?#end ${infrastructureComponentResult.service_key}`, 'g'),
             ''
         )
-
-        result = result.replace(/services:[\s\S]*?#start/g, "services: \n#start")
+        result = result.replace(/services:[\s\S]*?#[content]/g, "services:\n#[content]")
         result = result.replace(/#\[content\][\s\S]*?networks:/g, "#[content]\nnetworks:")
 
         createFile("./configuration/docker-compose.yml", result);

@@ -1,5 +1,5 @@
 import { localdatabase } from "@pedreiro-web/infrastructure/database/config";
-import { Application, ApplicationFile, ApplicationUpdate } from "@pedreiro-web/infrastructure/repository/types";
+import { ApplicationUpdate, ApplicationFile, Application } from "@pedreiro-web/infrastructure/repository/types/application";
 import { deleteFolder } from "@pedreiro-web/util/file";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -14,7 +14,7 @@ async function PUT(request: NextRequest, { params }: { params: Promise<{ id: num
 
     localdatabase.exec(`
         update application
-        set name = '${body.name}', port = ${body.port}, node_port = ${body.node_port}, target_port = ${body.target_port}, container_name = '${body.container_name}', image = '${body.image}', container_port = ${body.container_port}, replicas = ${body.replicas}
+        set name = '${body.name}', port = ${body.port}, node_port = ${body.node_port}, target_port = ${body.target_port}, container_name = '${body.container_name}', image = '${body.image}', replicas = ${body.replicas}, position_x = ${body.position_x}, position_y = ${body.position_y}
         where id = ${id}
     `)
 
@@ -37,7 +37,7 @@ async function PUT(request: NextRequest, { params }: { params: Promise<{ id: num
 
         var files = localdatabase.prepare(`select * from application_files where application_id = ${id}`).all() as ApplicationFile[];
         files.forEach(file => {
-            if (body.files.filter(x => x.id == file.id).length == 0) {
+            if (body.files?.filter(x => x.id == file.id).length == 0) {
                 localdatabase.exec(`
                     DELETE FROM application_files
                     WHERE id = ${file.id};

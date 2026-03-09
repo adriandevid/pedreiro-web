@@ -14,7 +14,7 @@ if (!fs.existsSync(`./configuration/applications/`)) {
 
 const data = new Uint8Array(Buffer.from(`
 services:
-
+#[content]
 networks:
   web:
     external: false
@@ -49,11 +49,18 @@ localdatabase.exec(`
     drop table if exists infrastructure_component_network;
     drop table if exists infrastructure_component_labels;
     drop table if exists infrastructure_component_environment;
+    drop table if exists edges;
 
     create table configuration(
         id integer primary key autoincrement,
         title varchar(200) not null,
         networks_web_external bool not null
+    );
+
+    create table edges(
+        id integer primary key autoincrement,
+        source_id varchar not null,
+        target_id varchar not null
     );
     
     create table application(
@@ -71,9 +78,10 @@ localdatabase.exec(`
         container_name varchar not null,
         image varchar not null,
         image_pull_policy varchar(100) not null default 'Always',
-        container_port integer not null,
         replicas integer not null default 1,
         configuration_id integer not null,
+        position_x integer not null,
+        position_y integer not null,
         constraint configuration_id_c foreign key (configuration_id) references configuration(id) on delete cascade
     );
 

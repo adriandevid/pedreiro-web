@@ -38,6 +38,7 @@ import Create from './actions/application/create';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import { Edge } from '@pedreiro-web/infrastructure/repository/types';
+import { InfrastructureComponentCommandValidator, InfrastructureComponentCreate, InfrastructureComponentValidator } from '@pedreiro-web/infrastructure/repository/types/infrastructure-component';
 
 
 // --- Aplicação Principal ---
@@ -67,6 +68,8 @@ export default function App() {
   }, [activeFile, fileTemplates]);
 
   const updatePosition = async (code: number, content: { position_x: number, position_y: number }) => {
+    console.log(JSON.stringify(content));
+
     const responseRequest = await fetch(`${window.location.href}/api/applications/${code}/update-position`, {
       method: "PUT",
       headers: { 'Content-Type': 'application/json' },
@@ -96,6 +99,18 @@ export default function App() {
     const responseResult: Edge[] = await responseRequest.json();
     return responseResult;
   }
+
+  const deleteEdge = async (id: number) => {
+    const responseRequest = await fetch(`${window.location.href}/api/edges/${id}`, {
+      method: "DELETE"
+    })
+
+    if (responseRequest.status == 200) {
+      return true;
+    }
+    return false;
+  }
+
 
   const handleNodeDrag = (id: any, x: any, y: any) => {
     updatePosition(nodes.filter(x => x.id == id)[0].code, { position_x: x, position_y: y });
@@ -176,6 +191,7 @@ export default function App() {
   };
 
   const removeEdge = (id: any) => {
+    deleteEdge(parseInt(`${edges.filter(e => e.id == id)[0].id}`.split("-")[1]))
     setEdges(prev => prev.filter(e => e.id !== id));
     showNotify("Conexão removida");
   };
@@ -302,11 +318,18 @@ export default function App() {
     }
   });
 
+  const propsFormCreateInfrastructureComponente = useForm<InfrastructureComponentCreate>({
+    resolver: zodResolver(InfrastructureComponentValidator),
+    defaultValues: {
+      restart: "Always"
+    }
+  });
+
   useEffect(function () {
     listEdges().then(r => {
       setEdges(r.map(edge => {
         const newEdge = {
-          id: `e-${Date.now()}`,
+          id: `e-${edge.id}`,
           source: edge.source_id,
           target: edge.target_id
         };
@@ -372,6 +395,7 @@ export default function App() {
           id: serviceId,
           // Se for WEB, usa 'container' (estilo escuro do Backend API)
           // type: state.data.type === 'web' ? 'container' : 'database',
+          code: state.data.id,
           type: "container",
           data: {
             label: state.data.name,
@@ -455,6 +479,8 @@ export default function App() {
     showNotify(`Serviço ${formData.name} registrado!`);
   };
 
+  const [showModalAddCommand, setShowModalAddCommand] = useState<boolean>(false);
+
   return (
     <div className="flex h-screen w-full bg-slate-50 overflow-hidden font-sans text-slate-900 select-none">
       {/* Notificação Toast */}
@@ -465,6 +491,23 @@ export default function App() {
         </div>
       )}
       {/* Modal de Cadastro */}
+      {
+        showModalAddCommand && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-300">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <h3 className="text-lg font-bold flex items-center gap-2">
+                  <PlusCircle className="text-cyan-500" size={20} /> Novo command
+                </h3>
+                <button onClick={() => {
+                  setShowAddModal(true);
+                  setShowModalAddCommand(false);
+                }} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+              </div>
+            </div>
+          </div>
+        )
+      }
       {showAddModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-300">
@@ -481,17 +524,113 @@ export default function App() {
               </div>
 
               {formData.type === 'infra' && (
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Tipo de Infra</label>
-                  <select
-                    value={formData.subType}
-                    onChange={e => setFormData({ ...formData, subType: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium bg-white"
-                  >
-                    <option value="db">Banco de Dados (SQL/NoSQL)</option>
-                    <option value="redis">Cache (Redis/In-memory)</option>
-                    <option value="mq">Mensageria (RabbitMQ/Kafka)</option>
-                  </select>
+                <div className='max-h-[400px] overflow-y-auto overflow-x-hidden flex flex-col gap-4 px-2'>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Tipo de Infra</label>
+                    <select
+                      value={formData.subType}
+                      onChange={e => setFormData({ ...formData, subType: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium bg-white"
+                    >
+                      <option value="db">Banco de Dados (SQL/NoSQL)</option>
+                      <option value="redis">Cache (Redis/In-memory)</option>
+                      <option value="mq">Mensageria (RabbitMQ/Kafka)</option>
+                    </select>
+                  </div>
+
+                  <div className='flex gap-4'>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Nome do container: </label>
+                      <input required {...propsFormCreateInfrastructureComponente.register("container_name")} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium" placeholder="Ex: example" />
+                      {propsFormCreateInfrastructureComponente.formState.errors.container_name && (<p className='text-[12px] text-red-500 font-bold'>{propsFormCreateInfrastructureComponente.formState.errors.container_name?.message}</p>)}
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Chave do serviço: </label>
+                      <input required {...propsFormCreateInfrastructureComponente.register("service_key")} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium" placeholder="Ex: example" />
+                      {propsFormCreateInfrastructureComponente.formState.errors.service_key && (<p className='text-[12px] text-red-500 font-bold'>{propsFormCreateInfrastructureComponente.formState.errors.service_key?.message}</p>)}
+                    </div>
+                  </div>
+                  <div className='flex gap-4'>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Ponto de entrada: </label>
+                      <input required {...propsFormCreateInfrastructureComponente.register("entrypoint")} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium" placeholder="Ex: example" />
+                      {propsFormCreateInfrastructureComponente.formState.errors.entrypoint && (<p className='text-[12px] text-red-500 font-bold'>{propsFormCreateInfrastructureComponente.formState.errors.entrypoint?.message}</p>)}
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Reinicialização: </label>
+                      <input required {...propsFormCreateInfrastructureComponente.register("restart")} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium" placeholder="Ex: example" />
+                      {propsFormCreateInfrastructureComponente.formState.errors.restart && (<p className='text-[12px] text-red-500 font-bold'>{propsFormCreateInfrastructureComponente.formState.errors.restart?.message}</p>)}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Commando único: </label>
+                    <input required {...propsFormCreateInfrastructureComponente.register("command")} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium" placeholder="Ex: example" />
+                    {propsFormCreateInfrastructureComponente.formState.errors.command && (<p className='text-[12px] text-red-500 font-bold'>{propsFormCreateInfrastructureComponente.formState.errors.command?.message}</p>)}
+                  </div>
+
+                  <div className="space-y-1 flex flex-col gap-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Commandos: </label>
+                    <div className='flex flex-row gap-4'>
+                      <div className='flex flex-row gap-4'>
+                        <div className="space-y-1">
+                          <input type="text" className=" w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium" placeholder='chave' />
+                        </div>
+                        <div className="space-y-1">
+                          <input type="text" className=" w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-cyan-500/20 outline-none text-sm font-medium" placeholder='valor' />
+                        </div>
+                        <div className="space-y-1">
+                          <button type='button' onClick={() => {
+                            setShowAddModal(false);
+                            setShowModalAddCommand(true);
+
+                          }} className='text-sm bg-sky-500 flex-1 rounded-lg text-white w-10 h-10 flex flex-row justify-center items-center'><Plus size={20}></Plus></button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className='bg-gray-100 rounded-lg p-2 flex-1 flex flex-row flex-wrap'>
+                      <p className='text-sm font-semibold p-2'>"--api.dashboard=true"</p>
+                      <p className='text-sm font-semibold p-2'>"--api.dashboard=true"</p>
+                      <p className='text-sm font-semibold p-2'>"--api.dashboard=true"</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1 flex flex-col gap-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Portas: </label>
+                    <button className='text-sm bg-sky-500 rounded-lg text-white w-10 h-10 flex flex-row justify-center items-center'><Plus size={20}></Plus></button>
+                    <div>
+
+                    </div>
+                  </div>
+                  <div className="space-y-1 flex flex-col gap-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Volumes: </label>
+                    <button className='text-sm bg-sky-500 rounded-lg text-white w-10 h-10 flex flex-row justify-center items-center'><Plus size={20}></Plus></button>
+                    <div>
+
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 flex flex-col gap-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Redes: </label>
+                    <button className='text-sm bg-sky-500 rounded-lg text-white w-10 h-10 flex flex-row justify-center items-center'><Plus size={20}></Plus></button>
+                    <div>
+
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 flex flex-col gap-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Labels: </label>
+                    <button className='text-sm bg-sky-500 rounded-lg text-white w-10 h-10 flex flex-row justify-center items-center'><Plus size={20}></Plus></button>
+                    <div>
+
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 flex flex-col gap-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Váriaveis de ambiente: </label>
+                    <button className='text-sm bg-sky-500 rounded-lg text-white w-10 h-10 flex flex-row justify-center items-center'><Plus size={20}></Plus></button>
+                    <div>
+
+                    </div>
+                  </div>
                 </div>
               )}
 

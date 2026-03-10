@@ -11,11 +11,11 @@ export type InfrastructureComponent = {
   restart: string          // default 'always'
   configuration_id: number,
   commands: InfrastructureComponentCommand[]
-//   ports: InfrastructureComponentPort[]
-//   volumes: InfrastructureComponentVolume[]
-//   networks: InfrastructureComponentNetwork[]
-//   labels: InfrastructureComponentLabel[]
-//   environments: InfrastructureComponentEnvironment[]
+  ports: InfrastructureComponentPort[]
+  volumes: InfrastructureComponentVolume[]
+  networks: InfrastructureComponentNetwork[]
+  labels: InfrastructureComponentLabel[]
+  environments: InfrastructureComponentEnvironment[]
 }
 
 
@@ -26,7 +26,7 @@ export type InfrastructureComponentCommand = {
 }
 
 export const InfrastructureComponentCommandValidator = z.object({
-  id: z.number(),
+  id: z.number().optional(),
   command: z.string(),
   infrastructure_component_id: z.number().optional()
 })
@@ -44,7 +44,7 @@ export type InfrastructureComponentPort = {
 }
 
 export const InfrastructureComponentPortValidator = z.object({
-  id: z.number(),
+  id: z.number().optional(),
   port_bind: z.string(),
   infrastructure_component_id: z.number().optional()
 })
@@ -61,7 +61,7 @@ export type InfrastructureComponentVolume = {
 }
 
 export const InfrastructureComponentVolumeValidator = z.object({
-  id: z.number(),
+  id: z.number().optional(),
   portvolume_bind: z.string(),
   infrastructure_component_id: z.number().optional()
 })
@@ -78,7 +78,7 @@ export type InfrastructureComponentNetwork = {
 }
 
 export const InfrastructureComponentNetworkValidator = z.object({
-  id: z.number(),
+  id: z.number().optional(),
   network: z.string(),
   infrastructure_component_id: z.number().optional()
 })
@@ -97,7 +97,7 @@ export type InfrastructureComponentLabel = {
 }
 
 export const InfrastructureComponentLabelValidator = z.object({
-  id: z.number(),
+  id: z.number().optional(),
   label: z.string(),
   infrastructure_component_id: z.number().optional()
 })
@@ -118,7 +118,7 @@ export type InfrastructureComponentEnvironment = {
 }
 
 export const InfrastructureComponentEnvironmentValidator = z.object({
-  id: z.number(),
+  id: z.number().optional(),
   environment_name: z.string(),
   environment_value: z.string(),
   infrastructure_component_id: z.number().optional()
@@ -132,7 +132,7 @@ export type InfrastructureComponentEnvironmentCreate = Omit<
 export type InfrastructureComponentEnvironmentUpdate = z.infer<typeof InfrastructureComponentEnvironmentValidator>;
 
 export const InfrastructureComponentValidator = z.object({
-  id: z.number(),
+  id: z.number().optional(),
   service_key: z.string(),
   image: z.string(),
   container_name: z.string(),

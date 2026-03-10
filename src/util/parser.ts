@@ -6,13 +6,17 @@ function parseJsonToYmlStringFormat(json: any, r: string, tabSpaceLevel: number)
             if (json[key] != null) {
                 if (Object.keys(json[key]).length > 0 && !Object.keys(json[key]).includes('0')) {
                     result += `${"  ".repeat(tabSpaceLevel)}${key}: \n`;
-                    result = parseJsonToYmlStringFormat(json[key] as Mapper, result, tabSpaceLevel + 1);
+                    result = parseJsonToYmlStringFormat(json[key], result, tabSpaceLevel + 1);
                 } else {
                     if (Array.isArray(json[key])) {
                         result += `${"  ".repeat(tabSpaceLevel)}${key}: \n`;
                         json[key].forEach((x, index) => {
-                            var arrayType: string[] = json[key] as string[];
-                            result += `${"  ".repeat(tabSpaceLevel + 1)}- ${arrayType[index]} \n`
+                            if(typeof(x) == "object") {
+                                result = parseJsonToYmlStringFormat(x, result, tabSpaceLevel + 1);
+                            } else {
+                                var arrayType: string[] = json[key] as string[];
+                                result += `${"  ".repeat(tabSpaceLevel + 1)}- ${arrayType[index]} \n`
+                            }
                         })
                     } else {
                         result += `${"  ".repeat(tabSpaceLevel)}${key}: ${json[key]} \n`;

@@ -4,12 +4,15 @@ import { z } from 'zod';
 export type InfrastructureComponent = {
   id: number
   service_key: string
+  type: string
   image: string
   container_name: string
-  entrypoint: string | null
-  command: string | null
+  entrypoint?: string | null | undefined
+  command?: string | null | undefined
   restart: string          // default 'always'
-  configuration_id: number,
+  configuration_id: number
+  position_x: number
+  position_y: number
   commands: InfrastructureComponentCommand[]
   ports: InfrastructureComponentPort[]
   volumes: InfrastructureComponentVolume[]
@@ -27,7 +30,7 @@ export type InfrastructureComponentCommand = {
 
 export const InfrastructureComponentCommandValidator = z.object({
   id: z.number().optional(),
-  command: z.string(),
+  command: z.string().min(1, { message: "Preencha o campo." }),
   infrastructure_component_id: z.number().optional()
 })
 export type InfrastructureComponentCommandCreate = Omit<
@@ -45,7 +48,7 @@ export type InfrastructureComponentPort = {
 
 export const InfrastructureComponentPortValidator = z.object({
   id: z.number().optional(),
-  port_bind: z.string(),
+  port_bind: z.string().min(1, { message: "Preencha o campo." }),
   infrastructure_component_id: z.number().optional()
 })
 export type InfrastructureComponentPortCreate = Omit<
@@ -62,7 +65,7 @@ export type InfrastructureComponentVolume = {
 
 export const InfrastructureComponentVolumeValidator = z.object({
   id: z.number().optional(),
-  portvolume_bind: z.string(),
+  volume: z.string().min(1, { message: "Preencha o campo." }),
   infrastructure_component_id: z.number().optional()
 })
 export type InfrastructureComponentVolumeCreate = Omit<
@@ -79,7 +82,7 @@ export type InfrastructureComponentNetwork = {
 
 export const InfrastructureComponentNetworkValidator = z.object({
   id: z.number().optional(),
-  network: z.string(),
+  network: z.string().min(1, { message: "Preencha o campo." }),
   infrastructure_component_id: z.number().optional()
 })
 
@@ -98,7 +101,7 @@ export type InfrastructureComponentLabel = {
 
 export const InfrastructureComponentLabelValidator = z.object({
   id: z.number().optional(),
-  label: z.string(),
+  label: z.string().min(1, { message: "Preencha o campo." }),
   infrastructure_component_id: z.number().optional()
 })
 
@@ -119,8 +122,8 @@ export type InfrastructureComponentEnvironment = {
 
 export const InfrastructureComponentEnvironmentValidator = z.object({
   id: z.number().optional(),
-  environment_name: z.string(),
-  environment_value: z.string(),
+  environment_name:z.string().min(1, { message: "Preencha o campo." }),
+  environment_value:z.string().min(1, { message: "Preencha o campo." }),
   infrastructure_component_id: z.number().optional()
 })
 
@@ -134,12 +137,15 @@ export type InfrastructureComponentEnvironmentUpdate = z.infer<typeof Infrastruc
 export const InfrastructureComponentValidator = z.object({
   id: z.number().optional(),
   service_key: z.string(),
-  image: z.string(),
+  type: z.string(),
+  image: z.string().min(1, { message: "Preencha o campo." }),
   container_name: z.string(),
-  entrypoint: z.string().optional(),
-  command: z.string(),
+  entrypoint: z.string().optional().nullable(),
+  command: z.string().optional().nullable(),
   restart: z.string().optional(),         // default 'always'
-  configuration_id: z.number(),
+  configuration_id: z.number().optional(),
+  position_x: z.number(),
+  position_y: z.number(),
   commands: z.array(InfrastructureComponentCommandValidator),
   ports: z.array(InfrastructureComponentPortValidator),
   volumes: z.array(InfrastructureComponentVolumeValidator),

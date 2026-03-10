@@ -100,6 +100,9 @@ localdatabase.exec(`
         container_name varchar(100) not null,
         entrypoint text null,
         command text null,
+        type varchar not null,
+        position_x integer not null,
+        position_y integer not null,
         restart varchar(100) not null default 'always',
         configuration_id integer not null,
         constraint configuration_id_c foreign key (configuration_id) references configuration(id) on delete cascade

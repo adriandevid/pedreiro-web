@@ -1,37 +1,23 @@
+'use server';
+
 import { localdatabase } from "@pedreiro-web/infrastructure/database/config";
-import { NextRequest, NextResponse } from "next/server"
-import { createFile, createFolder, readFile } from "@pedreiro-web/util/file";
-import { parseJsonToYmlStringFormat } from "@pedreiro-web/util/parser";
-import { normalizeQuery } from "@pedreiro-web/util/normalizeQuery";
-import { ApplicationFile } from "@pedreiro-web/infrastructure/repository/types/application";
 import { InfrastructureComponentCreate, InfrastructureComponentCommand, InfrastructureComponentPort, InfrastructureComponentVolume, InfrastructureComponentNetwork, InfrastructureComponentLabel, InfrastructureComponentEnvironment, InfrastructureComponent } from "@pedreiro-web/infrastructure/repository/types/infrastructure-component";
+import { createFile, readFile } from "@pedreiro-web/util/file";
+import { normalizeQuery } from "@pedreiro-web/util/normalizeQuery";
+import { parseJsonToYmlStringFormat } from "@pedreiro-web/util/parser";
 
-async function GET() {
-    const infrastructureComponents = localdatabase.prepare(`select * from infrastructure_component`).all() as InfrastructureComponent[];
-    infrastructureComponents.forEach(infrastructureComponent => {
-        infrastructureComponent.commands = localdatabase.prepare(`select * from infrastructure_component_command where infrastructure_component_id = ${infrastructureComponent.id}`).all() as InfrastructureComponentCommand[];
-        infrastructureComponent.ports = localdatabase.prepare(`select * from infrastructure_component_port where infrastructure_component_id = ${infrastructureComponent.id}`).all() as InfrastructureComponentPort[];
-        infrastructureComponent.volumes = localdatabase.prepare(`select * from infrastructure_component_volumes where infrastructure_component_id = ${infrastructureComponent.id}`).all() as InfrastructureComponentVolume[];
-        infrastructureComponent.networks = localdatabase.prepare(`select * from infrastructure_component_network where infrastructure_component_id = ${infrastructureComponent.id}`).all() as InfrastructureComponentNetwork[];
-        infrastructureComponent.labels = localdatabase.prepare(`select * from infrastructure_component_labels where infrastructure_component_id = ${infrastructureComponent.id}`).all() as InfrastructureComponentLabel[];
-        infrastructureComponent.environments = localdatabase.prepare(`select * from infrastructure_component_environment where infrastructure_component_id = ${infrastructureComponent.id}`).all() as InfrastructureComponentEnvironment[];
-    })
-    return NextResponse.json(infrastructureComponents, { status: 200 })
-}
-
-async function POST(request: NextRequest) {
-    const body: InfrastructureComponentCreate = await request.json();
+export default async function CreateInfrastructureComponent (prev: any, body: InfrastructureComponentCreate): Promise<any> {
 
     const infrastructureComponentsWithName = localdatabase.prepare(`select * from infrastructure_component where service_key = '${body.service_key}'`).all()
     const infrastructureComponentsResult: InfrastructureComponent[] = infrastructureComponentsWithName as InfrastructureComponent[];
 
     if (infrastructureComponentsResult.length > 0) {
-        return NextResponse.json({ message: "Já existe este componente!" }, { status: 400 })
+        return { message: "Já existe este componente!", status: 400 }
     }
 
     localdatabase.exec(normalizeQuery(`
-        insert into infrastructure_component(service_key, image, container_name, entrypoint, command, position_x, position_y, restart, configuration_id)
-        values ('${body.service_key}', '${body.image}', '${body.container_name}', '${body.entrypoint}', '${body.command}', ${body.position_x}, ${body.position_y}, ${body.restart}, 1)
+        insert into infrastructure_component(service_key, image, container_name, entrypoint, command, position_x, position_y, type, configuration_id)
+        values ('${body.service_key}', '${body.image}', '${body.container_name}', '${body.entrypoint}', '${body.command}', ${body.position_x}, ${body.position_y}, '${body.type}', 1)
     `))
 
     const lastInfrastructureComponentQuery = localdatabase.prepare("select * from infrastructure_component order by id desc limit 1").all();
@@ -113,13 +99,14 @@ async function POST(request: NextRequest) {
     var templateDocumentJson: any = {
         [lastInfrastructureComponentQueryResult.service_key]: {
             ...lastInfrastructureComponentQueryResult,
-            commands: lastInfrastructureComponentQueryResult.commands.map(x => x.command),
-            environment: lastInfrastructureComponentQueryResult.environments.map(x => ({
+            ports: lastInfrastructureComponentQueryResult.ports != undefined ? lastInfrastructureComponentQueryResult.ports.map(x => x.port_bind) : [],
+            commands: lastInfrastructureComponentQueryResult.commands != undefined ? lastInfrastructureComponentQueryResult.commands.map(x => x.command) : [],
+            environments: lastInfrastructureComponentQueryResult.environments != undefined ?  lastInfrastructureComponentQueryResult.environments.map(x => ({
                 [x.environment_name]: x.environment_value
-            })),
-            labels: lastInfrastructureComponentQueryResult.labels.map(x => x.label),
-            networks: lastInfrastructureComponentQueryResult.networks.map(x => x.network),
-            volumes: lastInfrastructureComponentQueryResult.volumes.map(x => x.volume)
+            })) : [],
+            labels: lastInfrastructureComponentQueryResult.labels != undefined ? lastInfrastructureComponentQueryResult.labels.map(x => x.label) : [],
+            networks: lastInfrastructureComponentQueryResult.networks != undefined ? lastInfrastructureComponentQueryResult.networks.map(x => x.network) : [],
+            volumes: lastInfrastructureComponentQueryResult.volumes != undefined ? lastInfrastructureComponentQueryResult.volumes.map(x => x.volume) : []
         }
     }
 
@@ -141,8 +128,5 @@ ${ymlDocumentResult}
         createFile("./configuration/docker-compose.yml", result);
     });
 
-    return NextResponse.json(lastInfrastructureComponentQueryResult, { status: 200 })
+    return { data: lastInfrastructureComponentQueryResult, status: 200 }
 }
-
-
-export { GET, POST }

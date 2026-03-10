@@ -1,9 +1,22 @@
 import { localdatabase } from "@pedreiro-web/infrastructure/database/config";
-import { InfrastructureComponentCommand, InfrastructureComponentEnvironment, InfrastructureComponentLabel, InfrastructureComponentNetwork, InfrastructureComponentPort, InfrastructureComponentVolume } from "@pedreiro-web/infrastructure/repository/types/infrastructure-component";
+import { InfrastructureComponent, InfrastructureComponentCommand, InfrastructureComponentEnvironment, InfrastructureComponentLabel, InfrastructureComponentNetwork, InfrastructureComponentPort, InfrastructureComponentVolume } from "@pedreiro-web/infrastructure/repository/types/infrastructure-component";
 import { createFile, readFile } from "@pedreiro-web/util/file";
 import { normalizeQuery } from "@pedreiro-web/util/normalizeQuery";
 import { NextRequest, NextResponse } from "next/server";
 
+async function GET(request: NextRequest, { params }: { params: Promise<{ id: number }> }) {
+    const { id } = await params;
+
+    const infrastructureComponents = localdatabase.prepare(`select * from infrastructure_component where id = ${id}`).all() as InfrastructureComponent[];
+    const infrastructureComponent = infrastructureComponents[0];
+    infrastructureComponent.commands = localdatabase.prepare(`select * from infrastructure_component_command where infrastructure_component_id = ${infrastructureComponent.id}`).all() as InfrastructureComponentCommand[];
+    infrastructureComponent.ports = localdatabase.prepare(`select * from infrastructure_component_port where infrastructure_component_id = ${infrastructureComponent.id}`).all() as InfrastructureComponentPort[];
+    infrastructureComponent.volumes = localdatabase.prepare(`select * from infrastructure_component_volumes where infrastructure_component_id = ${infrastructureComponent.id}`).all() as InfrastructureComponentVolume[];
+    infrastructureComponent.networks = localdatabase.prepare(`select * from infrastructure_component_network where infrastructure_component_id = ${infrastructureComponent.id}`).all() as InfrastructureComponentNetwork[];
+    infrastructureComponent.labels = localdatabase.prepare(`select * from infrastructure_component_labels where infrastructure_component_id = ${infrastructureComponent.id}`).all() as InfrastructureComponentLabel[];
+    infrastructureComponent.environments = localdatabase.prepare(`select * from infrastructure_component_environment where infrastructure_component_id = ${infrastructureComponent.id}`).all() as InfrastructureComponentEnvironment[];
+    return NextResponse.json(infrastructureComponent, { status: 200 })
+}
 async function PUT(request: NextRequest, { params }: { params: Promise<{ id: number }> }) {
     const { id } = await params;
     const body: InfrastructureComponent = await request.json();
@@ -54,7 +67,7 @@ async function PUT(request: NextRequest, { params }: { params: Promise<{ id: num
             if (item.id != undefined && item.id != 0) {
                 localdatabase.exec(normalizeQuery(`
                         UPDATE infrastructure_component_port
-                        SET port_bind = '${item.bind_port}'
+                        SET port_bind = '${item.port_bind}'
                         where id = ${id}
                     `))
                 return;
@@ -216,7 +229,7 @@ async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: 
 
     readFile("./configuration/docker-compose.yml", (content: string) => {
         var result = content;
-         
+
         result = result.replace(/services:[\s\S]*?#start/g, "services:\n#start")
 
         result = result.replace(
@@ -232,4 +245,4 @@ async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ status: 200 })
 }
 
-export { DELETE, PUT }
+export { DELETE, PUT, GET }

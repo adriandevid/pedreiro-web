@@ -28,6 +28,19 @@ function readFile(pathFile: string, callback: (content: string) => void) {
     });
 }
 
+function readFileAsync(pathFile: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        fs.readFile(pathFile, (err, data) => {
+            if (err) throw err;
+
+            const decoder = new TextDecoder('utf-8');
+            const str = decoder.decode(data.buffer);
+
+            resolve(str);
+        });
+    })
+}
+
 async function deleteFolder(folderPath: string) {
     try {
         await rm(folderPath, { recursive: true, force: true });
@@ -37,4 +50,4 @@ async function deleteFolder(folderPath: string) {
     }
 }
 
-export { createFolder, createFile, deleteFolder, readFile }
+export { createFolder, createFile, deleteFolder, readFile, readFileAsync }

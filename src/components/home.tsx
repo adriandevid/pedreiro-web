@@ -36,7 +36,9 @@ import {
     UploadCloud,
     FileText,
     Trash2,
-    LogOut
+    LogOut,
+    GripVertical,
+    Menu
 } from 'lucide-react';
 import domtoimage from "dom-to-image-more";
 import { domToPng } from 'modern-screenshot';
@@ -262,7 +264,7 @@ export default function Home({
     const MapInterator = () => (
         <div
             ref={canvasRef}
-            className="relative w-full h-full"
+            className="relative w-full h-full overflow-auto"
             onMouseMove={handleMouseMoveCanvas}
             onMouseUp={() => setTempEdge(null)}
         >
@@ -321,7 +323,10 @@ export default function Home({
                     key={node.id}
                     node={node}
                     isSelected={selectedNodeId === node.id}
-                    onClick={setSelectedNodeId}
+                    onClick={(nodeId: string) => {
+                        setSelectedNodeId(nodeId)
+                        setShowContentDetails(true)
+                    }}
                     onDrag={handleNodeDrag}
                     onStartConnect={startConnect}
                     onEndConnect={endConnect}
@@ -759,6 +764,35 @@ export default function Home({
     const removeFile = (index: number) => {
         propsFormUpdateApplication.setValue("files", propsFormUpdateApplication.watch("files").filter((x, indexFile) => indexFile != index));
     };
+
+    const [dockerComposeDocument, setDockerComposeDocument] = useState<string>();
+
+    const loadDockerCompose = async () => {
+        //http://localhost:3000/api/read-file/docker-compose
+        const requestResponse = await fetch("http://localhost:3000/api/read-file/docker-compose", { method: "GET" });
+        const responseJson: { content: string } = await requestResponse.json();
+        setDockerComposeDocument(responseJson.content);
+    }
+
+    const containerResizeRef = useRef<any>(null);
+    const contentDetailsRef = useRef<any>(null);
+    const [containerResizePositionMove, setContainerResizeModePosition] = useState<{ x: number, y: number } | undefined>();
+    const contentPage = useRef<any>(null);
+
+    useEffect(function () {
+        if (containerResizePositionMove) {
+            if (containerResizeRef != null && contentDetailsRef != null) {
+                contentDetailsRef.current.style.width = `${containerResizePositionMove.x}px`
+            }
+        }
+    }, [containerResizePositionMove])
+
+    useEffect(function () {
+        loadDockerCompose();
+    }, [])
+
+    const [showContentDetails, setShowContentDetails] = useState<boolean>(false);
+
 
     return (
         <div
@@ -1646,7 +1680,16 @@ export default function Home({
                     ].map(item => (
                         <button
                             key={item.id}
-                            onClick={() => setActiveTab(item.id)}
+                            onClick={() => {
+                                setActiveTab(item.id);
+                                if(item.id == 'files') {
+                                    setShowContentDetails(true);
+                                }
+
+                                if(item.id == 'nodes-map') {
+                                    setShowContentDetails(false);
+                                }
+                            }}
                             className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all text-sm ${activeTab === item.id ? 'bg-slate-800 text-white shadow-lg' : 'hover:bg-slate-800/50 text-slate-400'}`}
                         >
                             <item.icon size={18} className={activeTab === item.id ? 'text-cyan-400' : ''} />
@@ -1694,7 +1737,7 @@ export default function Home({
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 flex flex-col relative overflow-hidden">
+            <main ref={contentPage} className="flex-1 flex flex-col relative overflow-hidden">
 
                 {/* Header Superior */}
                 <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-[100] shadow-sm">
@@ -1747,13 +1790,13 @@ export default function Home({
                                 </>
                             )}
                         </div>
-                        <button className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-medium transition-all active:scale-95">
+                        {/* <button className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-medium transition-all active:scale-95">
                             <Save size={16} /> Salvar
-                        </button>
+                        </button> */}
                         <button
                             onClick={handleDeploy}
                             disabled={isDeploying}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold shadow-lg transition-all active:scale-95 ${isDeploying ? 'bg-slate-400 text-white' : 'bg-cyan-600 hover:bg-cyan-700 text-white shadow-cyan-200'
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold shadow-lg transition-all active:scale-95 cursor-pointer ${isDeploying ? 'bg-slate-400 text-white' : 'bg-cyan-600 hover:bg-cyan-700 text-white shadow-cyan-200'
                                 }`}
                         >
                             {isDeploying ? <RefreshCw size={16} className="animate-spin" /> : <Play size={16} />}
@@ -1763,7 +1806,7 @@ export default function Home({
                 </header>
 
                 {/* Content Area */}
-                <div className="flex-1 flex overflow-hidden">
+                <div className="flex-1 flex overflow-hidden relative">
 
                     {/* Canvas Arrastável */}
                     <div className={`flex-1 relative bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:24px_24px] overflow-hidden transition-all duration-500 ${activeTab !== 'nodes-map' ? 'opacity-30 scale-95 pointer-events-none' : 'opacity-100'}`}>
@@ -1792,10 +1835,26 @@ export default function Home({
                             <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-amber-500"></div> Database</div>
                         </div>
                     </div>
-
                     {/* Sidebar de Detalhes / Editor */}
-                    <div className={`w-[450px] border-l border-slate-200 bg-white flex flex-col shadow-2xl z-20 transform transition-transform duration-300`}>
+                    <div ref={contentDetailsRef} style={{ width: "800px" }} hidden={!showContentDetails} className={`relative border-l border-slate-200 bg-white flex flex-col shadow-2xl z-20 transform transition-transform duration-300`}>
+                        <div
+                            className='bg-transparent w-5 hover:bg-gray-100 h-full absolute z-[1000] flex justify-center items-center cursor-col-resize text-transparent hover:text-black'
+                            ref={containerResizeRef}
+                            draggable
+                            onDragEnd={(e) => {
+                                const rect = contentPage.current.getBoundingClientRect();
 
+                                const x = e.clientX - rect.left;
+                                const y = e.clientY - rect.top;
+
+                                setContainerResizeModePosition({
+                                    x: rect.width - parseInt(x.toFixed(0)),
+                                    y: parseInt(y.toFixed(0))
+                                });
+                            }}
+                        >
+                            <GripVertical />
+                        </div>
                         {/* Abas do Editor */}
                         <div className="flex bg-slate-50 border-b border-slate-200 p-1 gap-1 overflow-x-auto overflow-y-hidden">
                             {Object.keys(fileTemplates).map(file => (
@@ -1825,7 +1884,10 @@ export default function Home({
                                             <button onClick={() => {
                                                 setShowConfirmModal(true);
                                             }} className="p-1 hover:bg-red-100 rounded-full cursor-pointer text-red-400"><Trash size={20} /></button>
-                                            <button onClick={() => setSelectedNodeId(null)} className="p-1 hover:bg-slate-100 rounded-full cursor-pointer text-slate-400"><X size={20} /></button>
+                                            <button onClick={() => {
+                                                setSelectedNodeId(null)
+                                                 setShowContentDetails(false);
+                                            }} className="p-1 hover:bg-slate-100 rounded-full cursor-pointer text-slate-400"><X size={20} /></button>
                                         </div>
                                     </div>
 
@@ -1896,7 +1958,7 @@ export default function Home({
                                     <textarea
                                         className="w-full h-full p-8 font-mono text-sm bg-slate-900 text-cyan-50/90 outline-none resize-none selection:bg-cyan-500/30 leading-relaxed scrollbar-hide"
                                         spellCheck="false"
-                                        value={code}
+                                        value={dockerComposeDocument}
                                         onChange={(e) => setCode(e.target.value)}
                                     />
                                 </div>

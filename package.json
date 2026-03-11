@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node --no-warnings load_tables.ts && next dev",
+    "dev": "node --no-warnings init.ts && next dev",
     "build": "next build",
-    "start": "node --no-warnings load_tables.ts && next start",
+    "start": "node --no-warnings init.ts && next start",
     "lint": "eslint"
   },
   "dependencies": {

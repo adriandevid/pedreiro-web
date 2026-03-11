@@ -5,20 +5,21 @@ export type Application = {
   name: string
 
   // service
-  port: number
-  node_port: number
-  target_port: number
+  port: string
+  node_port: string
+  target_port: string
   protocol?: string        // default 'TCP'
   type?: string            // default 'NodePort'
 
   // deployment
   container_name: string
   image: string
-  image_pull_policy?: string | null
-  replicas: number         // default 1
+  image_pull_policy?: string | null | undefined
+  replicas: string         // default 1
   configuration_id: number
   position_x: number
   position_y: number
+  files: ApplicationFile[]
 }
 
 export type ApplicationFile = {
@@ -29,10 +30,10 @@ export type ApplicationFile = {
 }
 
 export const ApplicationFileValidator = z.object({
-  id: z.number(),
+  id: z.number().optional().nullable(),
   name: z.string(),
   file: z.string(),
-  application_id: z.number()
+  application_id: z.number().optional()
 });
 
 export type ApplicationFileUpdate = z.infer<typeof ApplicationFileValidator>;
@@ -51,10 +52,10 @@ export const ApplicationValidator = z.object({
   // deployment
   container_name: z.string({ message: "Preencha o campo."}),
   image: z.string({ message: "Preencha o campo."}).min(1, { message: "Preencha o campo."}),
-  image_pull_policy: z.string().optional(),
+  image_pull_policy: z.string().optional().nullable(),
   replicas: z.string().regex(new RegExp("\\d", "g"), { message: "Preencha o campo."}),         // default 1
   configuration_id: z.number().optional(),
-  files: z.array(ApplicationFileValidator).optional(),
+  files: z.array(ApplicationFileValidator),
   position_x: z.number(),
   position_y: z.number()
 });

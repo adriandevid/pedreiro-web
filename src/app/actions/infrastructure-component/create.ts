@@ -113,6 +113,9 @@ export default async function CreateInfrastructureComponent (prev: any, body: In
     delete templateDocumentJson[lastInfrastructureComponentQueryResult.service_key]["service_key"]
     delete templateDocumentJson[lastInfrastructureComponentQueryResult.service_key]["id"]
     delete templateDocumentJson[lastInfrastructureComponentQueryResult.service_key]["configuration_id"]
+    delete templateDocumentJson[lastInfrastructureComponentQueryResult.service_key]["position_x"]
+    delete templateDocumentJson[lastInfrastructureComponentQueryResult.service_key]["position_y"]
+    delete templateDocumentJson[lastInfrastructureComponentQueryResult.service_key]["type"]
 
     var ymlDocumentResult = parseJsonToYmlStringFormat(templateDocumentJson, "", 1)
 

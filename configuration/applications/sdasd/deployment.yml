@@ -1,0 +1,24 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sdasd-deployment
+  labels:
+    app: sdasd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sdasd
+  template:
+    metadata:
+      labels:
+        app: sdasd
+    spec:
+      containers:
+        - name: asdasd
+          image: wqdasdasdas
+          imagePullPolicy: Always
+      imagePullSecrets:
+        - name: myregistrykey
+    

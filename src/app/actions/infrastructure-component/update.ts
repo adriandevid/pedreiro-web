@@ -232,6 +232,9 @@ export default async function UpdateInfrastructureComponent(prev: any, body: Inf
     delete templateDocumentJson[infrastructureComponentResult.service_key]["service_key"]
     delete templateDocumentJson[infrastructureComponentResult.service_key]["id"]
     delete templateDocumentJson[infrastructureComponentResult.service_key]["configuration_id"]
+    delete templateDocumentJson[infrastructureComponentResult.service_key]["position_x"]
+    delete templateDocumentJson[infrastructureComponentResult.service_key]["position_y"]
+    delete templateDocumentJson[infrastructureComponentResult.service_key]["type"]
 
     var ymlDocumentResult = parseJsonToYmlStringFormat(templateDocumentJson, "", 1)
 

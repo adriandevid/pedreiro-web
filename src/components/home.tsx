@@ -38,7 +38,8 @@ import {
     Trash2,
     LogOut,
     GripVertical,
-    Menu
+    Menu,
+    CardSim
 } from 'lucide-react';
 import domtoimage from "dom-to-image-more";
 import { domToPng } from 'modern-screenshot';
@@ -51,10 +52,13 @@ import { InfrastructureComponent, InfrastructureComponentCommand, Infrastructure
 import Create from '@pedreiro-web/app/actions/application/create';
 import CreateInfrastructureComponent from '@pedreiro-web/app/actions/infrastructure-component/create';
 import UpdateInfrastructureComponent from '@pedreiro-web/app/actions/infrastructure-component/update';
-import { useRouter } from 'next/navigation';
+import { redirect, useRouter } from 'next/navigation';
 import DeleteInfrastructureComponent from '@pedreiro-web/app/actions/infrastructure-component/delete';
 import UpdateApplication from '@pedreiro-web/app/actions/application/update';
 import DeleteApplication from '@pedreiro-web/app/actions/application/delete';
+import Signout from '@pedreiro-web/app/actions/authentication/signout';
+import { cn } from '@pedreiro-web/util/tailwindmerge';
+import { MemoryInformations } from '@pedreiro-web/util/plataform';
 
 // --- Aplicação Principal ---
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, type = 'info' }: any) => {
@@ -95,8 +99,10 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, type = 
 export default function Home({
     edgesSource,
     applicationsSource,
-    infrastructureComponentsSource
+    infrastructureComponentsSource,
+    computerMemory
 }: {
+    computerMemory: MemoryInformations
     edgesSource: Edge[];
     applicationsSource: Application[];
     infrastructureComponentsSource: InfrastructureComponent[]
@@ -267,6 +273,9 @@ export default function Home({
             className="relative w-full h-full overflow-auto"
             onMouseMove={handleMouseMoveCanvas}
             onMouseUp={() => setTempEdge(null)}
+            style={{
+                zoom: scaleMap
+            }}
         >
             <svg className="absolute inset-0 w-full h-full pointer-events-none">
                 <defs>
@@ -322,6 +331,7 @@ export default function Home({
                 <CustomNode
                     key={node.id}
                     node={node}
+                    activeSelectNode={activedSelectNode}
                     isSelected={selectedNodeId === node.id}
                     onClick={(nodeId: string) => {
                         setSelectedNodeId(nodeId)
@@ -373,6 +383,8 @@ export default function Home({
     const [stateCreateInfrastructureComponent, formActionInfrastructureComponent, pendingCreateInfrastructureComponent] = useActionState(CreateInfrastructureComponent, { status: 200 });
     const [stateUpdateInfrastructureComponent, formActionUpdateInfrastructureComponent, pendingUpdateInfrastructureComponent] = useActionState(UpdateInfrastructureComponent, { status: 200 });
     const [stateDeleteInfrastructureComponent, formActionDeleteInfrastructureComponent, pendingDeleteInfrastructureComponent] = useActionState(DeleteInfrastructureComponent, { status: 200 });
+
+    const [stateSignout, formSignout, pendingSignout] = useActionState(Signout, {});
 
     const propsFormCreateApplication = useForm<ApplicationCreate>({
         resolver: zodResolver(ApplicationValidator),
@@ -780,6 +792,12 @@ export default function Home({
     const contentPage = useRef<any>(null);
 
     useEffect(function () {
+        if (stateSignout.status == 200 || stateSignout.status == 401 || stateSignout.status == 404) {
+            redirect("/login");
+        }
+    }, [stateSignout]
+    )
+    useEffect(function () {
         if (containerResizePositionMove) {
             if (containerResizeRef != null && contentDetailsRef != null) {
                 contentDetailsRef.current.style.width = `${containerResizePositionMove.x}px`
@@ -792,7 +810,8 @@ export default function Home({
     }, [])
 
     const [showContentDetails, setShowContentDetails] = useState<boolean>(false);
-
+    const [activedSelectNode, activeSelectNode] = useState<boolean>(false);
+    const [scaleMap, setScaleMap] = useState<number>(1.0);
 
     return (
         <div
@@ -1682,11 +1701,11 @@ export default function Home({
                             key={item.id}
                             onClick={() => {
                                 setActiveTab(item.id);
-                                if(item.id == 'files') {
+                                if (item.id == 'files') {
                                     setShowContentDetails(true);
                                 }
 
-                                if(item.id == 'nodes-map') {
+                                if (item.id == 'nodes-map') {
                                     setShowContentDetails(false);
                                 }
                             }}
@@ -1697,30 +1716,32 @@ export default function Home({
                         </button>
                     ))}
 
-                    <p className="text-[10px] font-bold text-slate-500 uppercase px-2 mt-6 mb-2 tracking-widest">Ambientes</p>
+                    {/* <p className="text-[10px] font-bold text-slate-500 uppercase px-2 mt-6 mb-2 tracking-widest">Ambiente Ativado</p>
                     <div className="space-y-1">
                         <button className="w-full flex items-center justify-between px-3 py-2 rounded-md bg-cyan-500/10 text-cyan-400 text-sm">
                             <span className="flex items-center gap-2 font-medium"> <Globe size={16} /> Produção</span>
                             <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
                         </button>
-                        <button className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-slate-800 text-sm opacity-60">
+                        <button onClick={() => console.log(process.env.NEXT_PUBLIC_ENVIRONMENT)} className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-slate-800 text-sm opacity-60">
                             <Settings size={16} /> Staging
                         </button>
-                    </div>
+                    </div> */}
 
                 </nav>
 
                 <div className="p-4 border-t border-slate-800">
                     <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 text-xs">
                         <div className="flex justify-between items-center mb-2 text-slate-400">
-                            <span className="flex items-center gap-1.5"><Zap size={12} /> CPU Total</span>
-                            <span className="text-cyan-400 font-bold">42%</span>
+                            <span className="flex items-center gap-1.5"><CardSim size={12} /> Memória Total</span>
+                            <span className="text-cyan-400 font-bold">{((computerMemory.size / 1000000) * 0.001).toFixed(1)}gb</span>
                         </div>
                         <div className="w-full bg-slate-700 h-1.5 rounded-full overflow-hidden">
-                            <div className="bg-cyan-500 h-full w-[42%] transition-all duration-1000"></div>
+                            <div style={{
+                                width: `${((((computerMemory.size / 1000000) * 0.001) - (computerMemory.freeSpace ? ((computerMemory.freeSpace / 1000000) * 0.001) : 0)) / ((computerMemory.size / 1000000) * 0.001)) * 100}%`
+                            }} className="bg-cyan-500 h-full w-[42%] transition-all duration-1000"></div>
                         </div>
                     </div>
-                    <div className="p-4 border-t border-slate-800">
+                    <div className="p-4">
                         <button
                             onClick={() => setShowAddModal(true)}
                             className="w-full py-3 cursor-pointer bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded-xl font-bold flex items-center justify-center gap-2 border border-slate-700/50 transition-colors"
@@ -1729,7 +1750,15 @@ export default function Home({
                         </button>
                     </div>
                     <div className="p-4 border-t border-slate-800">
-                        <button className="w-full py-3 cursor-pointer text-slate-500 hover:text-red-400 hover:bg-red-500/5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all">
+                        <button
+                            type='button'
+                            className="w-full py-3 cursor-pointer text-slate-500 hover:text-red-400 hover:bg-red-500/5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all"
+                            onClick={() => {
+                                startTransition(() => {
+                                    formSignout()
+                                })
+                            }}
+                        >
                             <LogOut size={16} /> Sair do Terminal
                         </button>
                     </div>
@@ -1749,8 +1778,14 @@ export default function Home({
                             {activeTab === 'nodes-map' ? 'Visualização de Cluster' : 'Editor de Configuração'}
                         </h2>
                         <div className="flex items-center gap-2 bg-green-50 px-3 py-1 rounded-full text-[11px] font-bold text-green-600 border border-green-100 uppercase tracking-tighter">
-                            <Activity size={12} /> CLUSTER: GCP-SOUTH-1
+                            <Activity size={12} /> CLUSTER: {process.env.NEXT_PUBLIC_CLUSTER_NAME}
                         </div>
+                        {
+                            process.env.NEXT_PUBLIC_ENVIRONMENT == "staging" ?
+                            <div className="flex items-center gap-2 bg-cyan-50 px-3 py-1 rounded-full text-[11px] font-bold text-cyan-600 border border-cyan-100 uppercase tracking-tighter">
+                               <Globe size={12} /> ENVIRONMENT: staging
+                            </div> : <></>
+                        }
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="relative">
@@ -1811,10 +1846,35 @@ export default function Home({
                     {/* Canvas Arrastável */}
                     <div className={`flex-1 relative bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:24px_24px] overflow-hidden transition-all duration-500 ${activeTab !== 'nodes-map' ? 'opacity-30 scale-95 pointer-events-none' : 'opacity-100'}`}>
                         <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
-                            <button className="p-2 bg-white shadow-xl border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 transition-transform active:scale-90">
+                            <button
+                                type='button'
+                                className="p-2 bg-white shadow-xl border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 transition-transform active:scale-90"
+                                onClick={() => {
+                                    setScaleMap(scaleMap + 0.1);
+                                }}
+                            >
                                 <Plus size={20} />
                             </button>
-                            <button className="p-2 bg-white shadow-xl border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 transition-transform active:scale-90">
+                            <button
+                                type='button'
+                                // disabled={scaleMap <= 1.0}
+                                className="p-2 bg-white shadow-xl border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 transition-transform active:scale-90"
+                                onClick={() => {
+                                    setScaleMap(scaleMap - 0.1);
+                                }}
+                            >
+                                <Minus size={20} />
+                            </button>
+                            <button
+                                onClick={() => activeSelectNode(!activedSelectNode)}
+                                type={'button'}
+                                className={cn(
+                                    "p-2 shadow-xl border border-slate-200 rounded-lg transition-transform cursor-pointer",
+                                    !activedSelectNode ?
+                                        "bg-white text-slate-600 hover:bg-slate-50" :
+                                        "bg-cyan-600 text-white scale-[1.1]"
+                                )}
+                            >
                                 <MousePointer2 size={20} />
                             </button>
                             <button
@@ -1836,7 +1896,7 @@ export default function Home({
                         </div>
                     </div>
                     {/* Sidebar de Detalhes / Editor */}
-                    <div ref={contentDetailsRef} style={{ width: "800px" }} hidden={!showContentDetails} className={`relative border-l border-slate-200 bg-white flex flex-col shadow-2xl z-20 transform transition-transform duration-300`}>
+                    <div ref={contentDetailsRef} style={{ width: "800px" }} data-width={containerResizePositionMove ? containerResizePositionMove.x : 800} hidden={!showContentDetails || !activedSelectNode} className={`relative border-l border-slate-200 bg-white flex flex-col shadow-2xl z-20 transform transition-transform duration-300 animate-fade-in-slide`}>
                         <div
                             className='bg-transparent w-5 hover:bg-gray-100 h-full absolute z-[1000] flex justify-center items-center cursor-col-resize text-transparent hover:text-black'
                             ref={containerResizeRef}
@@ -1886,7 +1946,7 @@ export default function Home({
                                             }} className="p-1 hover:bg-red-100 rounded-full cursor-pointer text-red-400"><Trash size={20} /></button>
                                             <button onClick={() => {
                                                 setSelectedNodeId(null)
-                                                 setShowContentDetails(false);
+                                                setShowContentDetails(false);
                                             }} className="p-1 hover:bg-slate-100 rounded-full cursor-pointer text-slate-400"><X size={20} /></button>
                                         </div>
                                     </div>

@@ -54,6 +54,27 @@ body {
   }
 }
 
+
+@keyframes animation-content-slide {
+  0% {
+    width: 0px;
+    opacity: 0;
+  }
+  100% {
+    width: attr("data-width") + "px";
+    opacity: 1;
+  }
+}
+
+
 .animate-fade-in {
   animation: animation-content 0.5s ease-out;
+}
+
+.animate-fade-in-slide {
+  animation: animation-content-slide 1s ease-in;
+}
+
+.animate-fade-out-slide {
+  animation: animation-content-slide 1s ease-out;
 }

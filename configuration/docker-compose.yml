@@ -8,18 +8,17 @@ services:
     entrypoint: ["minio"] 
     command: server /data --console-address ":9001" 
     restart: always 
+    commands: 
     ports: 
       - 9090:5555 
     volumes: 
       - /opt/myschool/minio:/data 
-    networks: 
-      - web 
     labels: 
       - traefik.http.services.minio.loadbalancer.server.port=9001 
     environments: 
       MINIO_ROOT_PASSWORD: minio_password 
       MINIO_CONSOLE_ADDRESS: :9001 
-    commands: 
+    networks: 
 
 #end minio
 #[content]

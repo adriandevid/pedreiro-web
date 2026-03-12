@@ -2,7 +2,7 @@ import { Box, Database, Server, Share2, Zap } from "lucide-react";
 import { useRef } from "react";
 import StatusBadge from "./statusBadge";
 
-export default function CustomNode({ node, isSelected, onClick, onDrag, onStartConnect, onEndConnect }: any) {
+export default function CustomNode({ node, isSelected, onClick, activeSelectNode, onDrag, onStartConnect, onEndConnect }: any) {
   const { id, type, data, position } = node;
   const isDragging = useRef(false);
   const startPos = useRef({ x: 0, y: 0 });
@@ -31,7 +31,10 @@ export default function CustomNode({ node, isSelected, onClick, onDrag, onStartC
     e.stopPropagation();
     isDragging.current = true;
     startPos.current = { x: e.clientX - position.x, y: e.clientY - position.y };
-    onClick(id);
+
+    if(activeSelectNode) {
+      onClick(id);
+    }
 
     const handleMouseMove = (moveEvent: any) => {
       if (!isDragging.current) return;
@@ -56,9 +59,10 @@ export default function CustomNode({ node, isSelected, onClick, onDrag, onStartC
       onMouseUp={() => onEndConnect(id)}
       style={{
         transform: `translate(${position.x}px, ${position.y}px)`,
-        transition: isDragging.current ? 'none' : 'transform 0.1s ease-out'
+        transition: isDragging.current ? 'none' : 'transform 0.1s ease-out',
+        cursor: activeSelectNode && !isSelected ? "default" : "move"
       }}
-      className={`absolute cursor-move p-3 rounded-xl border-2 shadow-lg min-w-[180px] group select-none ${themes[type]} ${isSelected ? 'ring-4 ring-cyan-500/30 z-20 scale-105' : 'hover:border-slate-400 z-10'}`}
+      className={`absolute cursor-move p-3 rounded-xl border-2 shadow-lg min-w-[180px] group select-none ${themes[type]} ${isSelected && activeSelectNode ? 'ring-4 ring-cyan-500/30 z-20 scale-105' : 'hover:border-slate-400 z-10'}`}
     >
       <div className="flex items-center justify-between mb-2 pointer-events-none">
         <div className="flex items-center gap-2">

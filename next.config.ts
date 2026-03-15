@@ -7,7 +7,8 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: '5mb',
     },
-  }
+  },
+  serverExternalPackages: ["dockerode-compose"]
 };
 
 export default nextConfig;

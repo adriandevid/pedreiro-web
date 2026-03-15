@@ -1809,9 +1809,9 @@ export default function Home({
                             <Activity size={12} /> CLUSTER: {process.env.NEXT_PUBLIC_CLUSTER_NAME}
                         </div>
                         {
-                            process.env.NEXT_PUBLIC_ENVIRONMENT == "staging" ?
+                            process.env.NEXT_PUBLIC_ENVIRONMENT ?
                                 <div className="flex items-center gap-2 bg-cyan-50 px-3 py-1 rounded-full text-[11px] font-bold text-cyan-600 border border-cyan-100 uppercase tracking-tighter">
-                                    <Globe size={12} /> ENVIRONMENT: staging
+                                    <Globe size={12} /> ENVIRONMENT: {process.env.NEXT_PUBLIC_ENVIRONMENT}
                                 </div> : <></>
                         }
                     </div>

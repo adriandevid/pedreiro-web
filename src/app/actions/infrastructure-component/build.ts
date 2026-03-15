@@ -2,6 +2,8 @@
 
 import { localdatabase } from "@pedreiro-web/infrastructure/database/config";
 import { exec } from "child_process";
+import DockerCompose from "dockerode-compose";
+import Docker from "dockerode";
 
 export default async function BuildInfrastructureComponent(prev: any, id: number) : Promise<{
     container: { name: string, status: string, log: string },

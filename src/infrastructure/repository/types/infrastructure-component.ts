@@ -1,6 +1,8 @@
 
 import { z } from 'zod';
 
+export type Log = { resource: string, log: string, time: number, short_log: string };
+
 export type InfrastructureComponent = {
   id: number
   service_key: string
@@ -19,6 +21,7 @@ export type InfrastructureComponent = {
   networks: InfrastructureComponentNetwork[]
   labels: InfrastructureComponentLabel[]
   environments: InfrastructureComponentEnvironment[]
+  logs: Log[]
   alive: boolean
 }
 

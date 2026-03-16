@@ -2,17 +2,15 @@
 
 import { localdatabase } from "@pedreiro-web/infrastructure/database/config";
 import { exec } from "child_process";
-import DockerCompose from "dockerode-compose";
-import Docker from "dockerode";
 
-export default async function BuildInfrastructureComponent(prev: any, id: number) : Promise<{
+export default async function DestroyInfrastructureComponent(prev: any, id: number) : Promise<{
     status: number
 } | undefined> {
 
     const rows = localdatabase.prepare(`select * from infrastructure_component where id = ${id}`).all() as { service_key: string }[];
 
     const buildComponent = new Promise<string>((resolve, reject) => {
-        exec(`docker compose -f ./configuration/docker-compose.yml up ${rows[0].service_key} -d`, (error, stdout, stderr) => {
+        exec(`docker compose -f ./configuration/docker-compose.yml down ${rows[0].service_key}`, (error, stdout, stderr) => {
             if (error) {
                 reject(`exec error: ${error}`);
                 return;

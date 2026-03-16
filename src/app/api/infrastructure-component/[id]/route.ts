@@ -1,5 +1,5 @@
 import { localdatabase } from "@pedreiro-web/infrastructure/database/config";
-import { InfrastructureComponent, InfrastructureComponentCommand, InfrastructureComponentEnvironment, InfrastructureComponentLabel, InfrastructureComponentNetwork, InfrastructureComponentPort, InfrastructureComponentVolume } from "@pedreiro-web/infrastructure/repository/types/infrastructure-component";
+import { InfrastructureComponent, InfrastructureComponentCommand, InfrastructureComponentEnvironment, InfrastructureComponentLabel, InfrastructureComponentNetwork, InfrastructureComponentPort, InfrastructureComponentVolume, Log } from "@pedreiro-web/infrastructure/repository/types/infrastructure-component";
 import { createFile, readFile } from "@pedreiro-web/util/file";
 import { normalizeQuery } from "@pedreiro-web/util/normalizeQuery";
 import { NextRequest, NextResponse } from "next/server";
@@ -15,6 +15,8 @@ async function GET(request: NextRequest, { params }: { params: Promise<{ id: num
     infrastructureComponent.networks = localdatabase.prepare(`select * from infrastructure_component_network where infrastructure_component_id = ${infrastructureComponent.id}`).all() as InfrastructureComponentNetwork[];
     infrastructureComponent.labels = localdatabase.prepare(`select * from infrastructure_component_labels where infrastructure_component_id = ${infrastructureComponent.id}`).all() as InfrastructureComponentLabel[];
     infrastructureComponent.environments = localdatabase.prepare(`select * from infrastructure_component_environment where infrastructure_component_id = ${infrastructureComponent.id}`).all() as InfrastructureComponentEnvironment[];
+    infrastructureComponent.logs = localdatabase.prepare(`select * from log where resource = '${infrastructureComponent.service_key}'`).all() as Log[];
+
     return NextResponse.json(infrastructureComponent, { status: 200 })
 }
 async function PUT(request: NextRequest, { params }: { params: Promise<{ id: number }> }) {

@@ -1,5 +1,6 @@
 'use client';
 
+import io, { ManagerOptions, Socket } from 'socket.io-client';
 import React, { useState, useCallback, useEffect, useMemo, useRef, useActionState, startTransition } from 'react';
 import {
     Server,
@@ -40,7 +41,8 @@ import {
     GripVertical,
     Menu,
     CardSim,
-    Code
+    Code,
+    CircleSlash
 } from 'lucide-react';
 import domtoimage from "dom-to-image-more";
 import { domToPng } from 'modern-screenshot';
@@ -49,7 +51,7 @@ import { Application, ApplicationCreate, ApplicationFile, ApplicationFileCreate,
 import { zodResolver } from '@hookform/resolvers/zod';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import { Edge } from '@pedreiro-web/infrastructure/repository/types';
-import { InfrastructureComponent, InfrastructureComponentCommand, InfrastructureComponentCommandCreate, InfrastructureComponentCommandValidator, InfrastructureComponentCreate, InfrastructureComponentEnvironmentCreate, InfrastructureComponentEnvironmentValidator, InfrastructureComponentLabelCreate, InfrastructureComponentLabelValidator, InfrastructureComponentNetworkCreate, InfrastructureComponentNetworkValidator, InfrastructureComponentPortCreate, InfrastructureComponentPortValidator, InfrastructureComponentUpdate, InfrastructureComponentValidator, InfrastructureComponentVolumeCreate, InfrastructureComponentVolumeValidator } from '@pedreiro-web/infrastructure/repository/types/infrastructure-component';
+import { InfrastructureComponent, InfrastructureComponentCommand, InfrastructureComponentCommandCreate, InfrastructureComponentCommandValidator, InfrastructureComponentCreate, InfrastructureComponentEnvironmentCreate, InfrastructureComponentEnvironmentValidator, InfrastructureComponentLabelCreate, InfrastructureComponentLabelValidator, InfrastructureComponentNetworkCreate, InfrastructureComponentNetworkValidator, InfrastructureComponentPortCreate, InfrastructureComponentPortValidator, InfrastructureComponentUpdate, InfrastructureComponentValidator, InfrastructureComponentVolumeCreate, InfrastructureComponentVolumeValidator, Log } from '@pedreiro-web/infrastructure/repository/types/infrastructure-component';
 import Create from '@pedreiro-web/app/actions/application/create';
 import CreateInfrastructureComponent from '@pedreiro-web/app/actions/infrastructure-component/create';
 import UpdateInfrastructureComponent from '@pedreiro-web/app/actions/infrastructure-component/update';
@@ -61,6 +63,9 @@ import Signout from '@pedreiro-web/app/actions/authentication/signout';
 import { cn } from '@pedreiro-web/util/tailwindmerge';
 import { MemoryInformations } from '@pedreiro-web/util/plataform';
 import BuildInfrastructureComponent from '@pedreiro-web/app/actions/infrastructure-component/build';
+import UpdateStateInfrastructureComponent from '@pedreiro-web/app/actions/infrastructure-component/updateState';
+import StopInfrastructureComponent from '@pedreiro-web/app/actions/infrastructure-component/stop';
+import DestroyInfrastructureComponent from '@pedreiro-web/app/actions/infrastructure-component/destroy';
 
 // --- Aplicação Principal ---
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, type = 'info' }: any) => {
@@ -389,6 +394,8 @@ export default function Home({
     const [stateSignout, formSignout, pendingSignout] = useActionState(Signout, {});
 
     const [stateBuildInfrastructureComponent, formActionBuildInfrastructureComponent, pendingBuildInfrastructureComponent] = useActionState(BuildInfrastructureComponent, undefined);
+    const [stateStopInfrastructureComponent, formActionStopInfrastructureComponent, pendingStopInfrastructureComponent] = useActionState(StopInfrastructureComponent, undefined);
+    const [stateDestroyInfrastructureComponent, formActionDestroyInfrastructureComponent, pendingDestroyInfrastructureComponent] = useActionState(DestroyInfrastructureComponent, undefined);
 
     const propsFormCreateApplication = useForm<ApplicationCreate>({
         resolver: zodResolver(ApplicationValidator),
@@ -822,7 +829,7 @@ export default function Home({
     const [scaleMap, setScaleMap] = useState<number>(1.0);
 
     // const [executingBuild, executeBuild] = useState<boolean>(false);
-    const [localLogOfBuild, setLocalLogOfBuild] = useState<string>("");
+    const [localLogOfBuild, setLocalLogOfBuild] = useState<Log[]>([]);
 
     const buildInfrastructureComponent = async () => {
         setIsDeploying(true);
@@ -831,12 +838,94 @@ export default function Home({
         })
     }
 
+    const stopInfrastructureComponent = async () => {
+        setIsDeploying(true);
+        startTransition(function () {
+            formActionStopInfrastructureComponent(selectedNode.code);
+        })
+    }
+
+    const destroyInfrastructureComponent = async () => {
+        setIsDeploying(true);
+        startTransition(function () {
+            formActionDestroyInfrastructureComponent(selectedNode.code);
+        })
+    }
+
+    useEffect(function () {
+        if (stateStopInfrastructureComponent && stateStopInfrastructureComponent.status == 200) {
+            setIsDeploying(false);
+        }
+    }, [stateStopInfrastructureComponent])
+
+    useEffect(function () {
+        if (stateDestroyInfrastructureComponent && stateDestroyInfrastructureComponent.status == 200) {
+            setIsDeploying(false);
+        }
+    }, [stateDestroyInfrastructureComponent])
+
+    const [stateUpdateStateOfComponent, formActionUpdateStateOfComponent, pendingUpdateStateOfComponent] = useActionState(UpdateStateInfrastructureComponent, undefined);
+
+    const [socket, setSocket] = useState<Socket | undefined>();
+
+    useEffect(function () {
+        if (socket) {
+            socket.on(`logs-container`, (msg) => {
+                var logs: Log[] = JSON.parse(msg);
+                setLocalLogOfBuild([...logs]);
+            })
+        }
+    }, [socket])
+
+    const loadLogsOfService = async () => {
+        const request = await fetch(`${window.location.href}/api/logs/${selectedNode.code}`, { method: "GET" });
+        const response: Log[] = await request.json();
+        setLocalLogOfBuild([...response]);
+    }
+
+    useEffect(function () {
+        if (selectedNode) {
+            loadLogsOfService();
+        }
+    }, [selectedNodeId])
+
+    useEffect(function () {
+        if (localLogOfBuild.length > 0) {
+            var isInfrastructureComponent = infrastructureComponentsSource.filter(x => x.service_key == localLogOfBuild[localLogOfBuild.length - 1].resource).length > 0;
+            if (isInfrastructureComponent) {
+                if (
+                    localLogOfBuild[localLogOfBuild.length - 1].short_log.includes("start") || 
+                    localLogOfBuild[localLogOfBuild.length - 1].short_log.includes("die") ||
+                    localLogOfBuild[localLogOfBuild.length - 1].short_log.includes("destroy")
+                ) {
+                    var infrastructureComponent = infrastructureComponentsSource.filter(x => x.service_key == localLogOfBuild[localLogOfBuild.length - 1].resource)[0];
+                    startTransition(function () {
+                        formActionUpdateStateOfComponent(infrastructureComponent.id);
+                    })
+                }
+            }
+        }
+    }, [localLogOfBuild])
+
+    useEffect(function () {
+        if (stateUpdateStateOfComponent && stateUpdateStateOfComponent.status == 200) {
+            router.refresh();
+        }
+    }, [stateUpdateStateOfComponent])
+
+
+    useEffect(function () {
+        const newSocket = io("http://localhost:3000");
+        setSocket(newSocket);
+
+        return () => {
+            newSocket.close();
+        }
+    }, []);
+
     useEffect(function () {
         if (stateBuildInfrastructureComponent && stateBuildInfrastructureComponent.status == 200) {
-            console.log(stateBuildInfrastructureComponent)
-            setLocalLogOfBuild(localLogOfBuild + "\n" + stateBuildInfrastructureComponent.container.log);
             setIsDeploying(false);
-            router.refresh();
         }
     }, [stateBuildInfrastructureComponent])
 
@@ -2016,16 +2105,41 @@ export default function Home({
                                             {/* <button className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-black transition-colors">
                                                 <Terminal size={18} /> Abrir Terminal de Node
                                             </button> */}
-                                            <button
-                                                onClick={() => {
-                                                    buildInfrastructureComponent();
-                                                }}
-                                                disabled={isDeploying}
-                                                className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-black transition-colors cursor-pointer"
-                                            >
-                                                {isDeploying ? <RefreshCw size={16} className="animate-spin" /> : <Code size={16} className="text-cyan-400" />}
-                                                {isDeploying ? 'Deploying...' : 'Deploy'}
-                                            </button>
+                                            {
+                                                localLogOfBuild.length > 0 && localLogOfBuild[localLogOfBuild.length - 1].short_log.includes("start") ?
+                                                    <div className='flex flex-row gap-4'>
+                                                        <button
+                                                            onClick={() => {
+                                                                stopInfrastructureComponent();
+                                                            }}
+                                                            disabled={isDeploying}
+                                                            className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-black transition-colors cursor-pointer"
+                                                        >
+                                                            {isDeploying ? <RefreshCw size={16} className="animate-spin" /> : <CircleSlash size={16} className="text-cyan-400" />}
+                                                            {isDeploying ? 'Stoping...' : 'Stop Deployment'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                destroyInfrastructureComponent();
+                                                            }}
+                                                            disabled={isDeploying}
+                                                            className="w-full items-center gap-2 flex items-center justify-center  py-3 rounded-lg text-sm font-bold shadow-lg transition-all active:scale-95 cursor-pointer bg-red-600 hover:bg-red-700 text-white shadow-red-200"
+                                                        >
+                                                            {isDeploying ? <RefreshCw size={16} className="animate-spin" /> : <CircleSlash size={16} className="text-white" />}
+                                                            {isDeploying ? 'Destroying...' : 'Destroy Deployment'}
+                                                        </button>
+                                                    </div> :
+                                                    <button
+                                                        onClick={() => {
+                                                            buildInfrastructureComponent();
+                                                        }}
+                                                        disabled={isDeploying}
+                                                        className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-black transition-colors cursor-pointer"
+                                                    >
+                                                        {isDeploying ? <RefreshCw size={16} className="animate-spin" /> : <Code size={16} className="text-cyan-400" />}
+                                                        {isDeploying ? 'Deploying...' : 'Deploy'}
+                                                    </button>
+                                            }
                                             <button type='button' onClick={async () => {
                                                 if (selectedNode.id.includes("infra")) {
                                                     const serviceResponse = await fetch(`${window.location.href}/api/infrastructure-component/${selectedNode.code}`, { method: "GET" });
@@ -2090,12 +2204,10 @@ export default function Home({
                                         <p className="flex gap-2"><span>[14:22:01]</span> <span className="text-slate-500">Ambiente de Produção carregado.</span></p>
                                         {
                                             localLogOfBuild.length > 0 ?
-                                              localLogOfBuild.includes("\n") ?
-                                              localLogOfBuild.split("\n").filter(x => x.length > 0).map((x, index) => (
-                                                <div key={index}><p className="flex gap-2 text-cyan-500"><span>{`[${new Date().toLocaleDateString()}]`}</span>{x}</p></div>
-                                              )) :
-                                                <p className="flex gap-2 text-cyan-500"><span>{`[${new Date().getTime()}]`}</span> {localLogOfBuild}</p>:
-                                            <></>
+                                                localLogOfBuild.map((x, index) => (
+                                                    <div key={index}><p className="flex gap-2 text-cyan-500"><span>{`[${new Date(x.time * 1000).toLocaleDateString()}]`}</span>{x.short_log}</p></div>
+                                                )) :
+                                                <></>
                                         }
                                         {/* {(localLogOfBuild.length > 0) && <p className="flex gap-2 text-cyan-500"><span>[14:25:42]</span> {localLogOfBuild.includes("\n") ? localLogOfBuild.split("\n").map(x => (<>{x} <br/></>)): localLogOfBuild}</p>} */}
                                     </>

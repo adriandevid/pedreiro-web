@@ -22,9 +22,25 @@ export type InfrastructureComponent = {
   labels: InfrastructureComponentLabel[]
   environments: InfrastructureComponentEnvironment[]
   logs: Log[]
-  alive: boolean
+  alive: boolean,
+  files: InfrastructureComponentFile[]
 }
 
+export type InfrastructureComponentFile = {
+  id: number;
+  name: string,
+  file: string,
+  infrastructure_component_id?: number | undefined;
+}
+
+export const InfrastructureComponentFileValidator = z.object({
+  id: z.number().optional().nullable(),
+  name: z.string(),
+  file: z.string(),
+  infrastructure_component_id: z.number().optional()
+});
+
+export type InfrastructureComponentFileUpdate = z.infer<typeof InfrastructureComponentFileValidator>;
 
 export type InfrastructureComponentCommand = {
   id: number
@@ -155,7 +171,8 @@ export const InfrastructureComponentValidator = z.object({
   volumes: z.array(InfrastructureComponentVolumeValidator),
   networks: z.array(InfrastructureComponentNetworkValidator),
   labels: z.array(InfrastructureComponentLabelValidator),
-  environments: z.array(InfrastructureComponentEnvironmentValidator)
+  environments: z.array(InfrastructureComponentEnvironmentValidator),
+  files: z.array(InfrastructureComponentFileValidator)
 });
 
 

@@ -62,7 +62,7 @@ export default function CustomNode({ node, isSelected, onClick, activeSelectNode
         transition: isDragging.current ? 'none' : 'transform 0.1s ease-out',
         cursor: activeSelectNode && !isSelected ? "default" : "move"
       }}
-      className={`absolute cursor-move p-3 rounded-xl border-2 shadow-lg min-w-[180px] group select-none ${themes[type]} ${isSelected && activeSelectNode ? 'ring-4 ring-cyan-500/30 z-20 scale-105' : 'hover:border-slate-400 z-10'}`}
+      className={`absolute cursor-move p-3 rounded-xl border-2 shadow-lg min-w-[180px] group select-none  ${themes[type]} ${isSelected && activeSelectNode ? 'ring-4 ring-cyan-500/30 z-20 scale-105' : 'hover:border-slate-400 z-10'}`}
     >
       <div className="flex items-center justify-between mb-2 pointer-events-none gap-4">
         <div className="flex items-center gap-2">

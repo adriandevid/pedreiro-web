@@ -50,4 +50,12 @@ async function deleteFolder(folderPath: string) {
     }
 }
 
-export { createFolder, createFile, deleteFolder, readFile, readFileAsync }
+function base64ToUt8(file: string) {
+    const binString = atob(file);
+    const bytes = Uint8Array.from(binString, (m) => m.codePointAt(0)!);
+    const decoder = new TextDecoder("utf-8");
+
+    return decoder.decode(bytes);
+}
+
+export { createFolder, createFile, deleteFolder, readFile, readFileAsync, base64ToUt8 }

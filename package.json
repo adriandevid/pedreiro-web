@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "@kubernetes/client-node": "^1.4.0",
     "@types/cookie": "^0.6.0",
     "@types/js-yaml": "^4.0.9",
     "@xyflow/react": "^12.10.1",

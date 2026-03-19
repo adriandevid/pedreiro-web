@@ -28,16 +28,138 @@ type DockerEvent = {
     timeNano: number;
 };
 
+type KubernetesPod = {
+    kind: 'Pod';
+    apiVersion: 'v1';
+
+    metadata: {
+        name: string;
+        generateName?: string;
+        namespace: string;
+        uid: string;
+        resourceVersion: string;
+        generation: number;
+        creationTimestamp: string;
+
+        labels?: Record<string, string>;
+
+        ownerReferences?: Array<{
+            apiVersion: string;
+            kind: string;
+            name: string;
+            uid: string;
+            controller?: boolean;
+            blockOwnerDeletion?: boolean;
+        }>;
+
+        managedFields?: any[];
+    };
+
+    spec: {
+        volumes?: any[];
+
+        containers: Array<{
+            name: string;
+            image: string;
+            ports?: Array<{
+                containerPort: number;
+                protocol?: string;
+            }>;
+        }>;
+
+        restartPolicy: 'Always' | 'OnFailure' | 'Never';
+        terminationGracePeriodSeconds?: number;
+
+        dnsPolicy?: 'ClusterFirst' | 'Default';
+
+        serviceAccountName?: string;
+        nodeName?: string;
+
+        securityContext?: Record<string, any>;
+        schedulerName?: string;
+
+        tolerations?: Array<{
+            key?: string;
+            operator?: string;
+            value?: string;
+            effect?: string;
+            tolerationSeconds?: number;
+        }>;
+
+        priority?: number;
+        enableServiceLinks?: boolean;
+        preemptionPolicy?: string;
+    };
+
+    status: {
+        phase: 'Pending' | 'Running' | 'Succeeded' | 'Failed' | 'Unknown';
+
+        conditions?: Array<{
+            type: string;
+            status: 'True' | 'False' | 'Unknown';
+            lastProbeTime?: string;
+            lastTransitionTime?: string;
+        }>;
+
+        hostIP?: string;
+        hostIPs?: Array<{ ip: string }>;
+
+        podIP?: string;
+        podIPs?: Array<{ ip: string }>;
+
+        startTime?: string;
+
+        containerStatuses?: Array<{
+            name: string;
+            ready: boolean;
+            restartCount: number;
+            image: string;
+            imageID: string;
+
+            state?: {
+                running?: {
+                    startedAt: string;
+                };
+                waiting?: {
+                    reason: string;
+                    message?: string;
+                };
+                terminated?: {
+                    exitCode: number;
+                    reason?: string;
+                    finishedAt?: string;
+                };
+            };
+        }>;
+
+        qosClass?: 'Guaranteed' | 'Burstable' | 'BestEffort';
+    };
+};
+
+
 const Database = require("better-sqlite3");
 const { createServer } = require("node:http");
 const next = require("next");
 const { Server } = require("socket.io");
 const Docker = require("dockerode");
+const { exec } = require("child_process");
+const k8s = require('@kubernetes/client-node');
 
 const app = next({ dev: process.env.NODE_ENV !== "production" });
 const handler = app.getRequestHandler();
 
 const localdatabase = new Database('./src/infrastructure/database/mydatabase.db');
+
+exec(`docker compose -f ./configuration/docker-compose.yml down`, (error: any, stdout: any, stderr: any) => {
+    if (error) {
+        return;
+    }
+
+    localdatabase.exec(`
+        UPDATE infrastructure_component
+        SET alive = false;
+    `)
+})
 
 app.prepare().then(() => {
     const httpServer = createServer(handler);
@@ -45,6 +167,62 @@ app.prepare().then(() => {
 
     io.on("connection", async (socket: any) => {
         console.log("Client connected");
+
+        // Load the Kubernetes configuration from the default location (~/.kube/config)
+        const kc = new k8s.KubeConfig();
+        kc.loadFromDefault({
+            clusters: [{
+                name: 'my-server',
+                server: 'http://localhost:8080',
+            }]
+        });
+
+        const watch = new k8s.Watch(kc);
+
+        const uri = '/api/v1/pods';
+        const queryParams = { allowWatchBookmarks: true };
+        const callback = (phase: any, apiObj: KubernetesPod) => {
+            if (apiObj.metadata.name) {
+                const application: any[] = localdatabase.prepare(`select * from application where name = '${apiObj.metadata.name.split("-")[0]}'`).all() as any[];
+                var shortLog = `${phase} - ${apiObj.metadata.name.split("-")[0]} - ${apiObj.status.phase}`;
+                
+                if (application.length > 0) {
+                    const streams: { id: number, operation: string, resource: string, logs: { resource: string, log: string, time: number, short_log: string }[] }[] = localdatabase.prepare(`select * from stream where resource = '${apiObj.metadata.name.split("-")[0]}' order by id DESC`).all() as any[];
+                    const lastStream = streams[0];
+
+                    var date = new Date();
+
+                    if (apiObj.status.startTime) {
+                        date = new Date(apiObj.status.startTime);
+                    }
+
+                    var timestamp = date.getTime();
+
+                    localdatabase.exec(`
+                        insert into log(resource, log, time, short_log, stream_id)
+                        values ('${apiObj.metadata.name.split("-")[0]}', '${JSON.stringify(apiObj)}', ${timestamp}, '${shortLog}', ${lastStream.id})
+                    `);
+
+                    if ((phase == "ADDED" || phase == "MODIFIED") && apiObj.status.phase == "Running") {
+                        io.emit(`update-state-resource`, { resource: apiObj.metadata.name.split("-")[0], state: apiObj.status.phase });
+                    } else if (phase == "DELETED" && apiObj.status.phase == "Succeeded") {
+                        io.emit(`update-state-resource`, { resource: apiObj.metadata.name.split("-")[0], state: phase });
+                    }
+                }
+            }
+        };
+
+        // Start the watch stream
+        const req = watch.watch(
+            uri,
+            queryParams,
+            callback,
+            // Optional: a done callback that is called when the watch connection closes
+            (err: any) => {
+                console.error('Watch connection closed:', err);
+                // Implement reconnection logic here
+            }
+        );
 
         const dockerode = new Docker();
 
@@ -100,7 +278,7 @@ app.prepare().then(() => {
                         )) ||
                         (streams[0].operation == "down" && streams[0].logs[streams[0].logs.length - 1].short_log.includes("destroy"))
                     ) {
-                        io.emit(`update-state-resource`, streams[0].resource);
+                        io.emit(`update-state-resource`, { resource: streams[0].resource });
                     }
                 }
             } catch (ex) {

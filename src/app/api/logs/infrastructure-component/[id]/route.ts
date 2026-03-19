@@ -7,6 +7,8 @@ async function GET(request: NextRequest, { params }: { params: Promise<{ id: num
 
     const infrastructureComponents = localdatabase.prepare(`select * from infrastructure_component where id = ${id}`).all() as InfrastructureComponent[];
     const infrastructureComponent = infrastructureComponents[0];
+    
+    console.log(infrastructureComponents.length);
 
     const streams: { id: number, resource: string, operation: string, logs: Log[] }[] = localdatabase.prepare(`select * from stream where resource = '${infrastructureComponent.service_key}' order by id DESC`).all() as any[];
     

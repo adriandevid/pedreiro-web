@@ -51,7 +51,7 @@ import { Application, ApplicationCreate, ApplicationFile, ApplicationFileCreate,
 import { zodResolver } from '@hookform/resolvers/zod';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import { Edge } from '@pedreiro-web/infrastructure/repository/types';
-import { InfrastructureComponent, InfrastructureComponentCommand, InfrastructureComponentCommandCreate, InfrastructureComponentCommandValidator, InfrastructureComponentCreate, InfrastructureComponentEnvironmentCreate, InfrastructureComponentEnvironmentValidator, InfrastructureComponentLabelCreate, InfrastructureComponentLabelValidator, InfrastructureComponentNetworkCreate, InfrastructureComponentNetworkValidator, InfrastructureComponentPortCreate, InfrastructureComponentPortValidator, InfrastructureComponentUpdate, InfrastructureComponentValidator, InfrastructureComponentVolumeCreate, InfrastructureComponentVolumeValidator, Log } from '@pedreiro-web/infrastructure/repository/types/infrastructure-component';
+import { InfrastructureComponent, InfrastructureComponentCommand, InfrastructureComponentCommandCreate, InfrastructureComponentCommandValidator, InfrastructureComponentCreate, InfrastructureComponentEnvironmentCreate, InfrastructureComponentEnvironmentValidator, InfrastructureComponentFileUpdate, InfrastructureComponentLabelCreate, InfrastructureComponentLabelValidator, InfrastructureComponentNetworkCreate, InfrastructureComponentNetworkValidator, InfrastructureComponentPortCreate, InfrastructureComponentPortValidator, InfrastructureComponentUpdate, InfrastructureComponentValidator, InfrastructureComponentVolumeCreate, InfrastructureComponentVolumeValidator, Log } from '@pedreiro-web/infrastructure/repository/types/infrastructure-component';
 import Create from '@pedreiro-web/app/actions/application/create';
 import CreateInfrastructureComponent from '@pedreiro-web/app/actions/infrastructure-component/create';
 import UpdateInfrastructureComponent from '@pedreiro-web/app/actions/infrastructure-component/update';
@@ -66,6 +66,9 @@ import BuildInfrastructureComponent from '@pedreiro-web/app/actions/infrastructu
 import UpdateStateInfrastructureComponent from '@pedreiro-web/app/actions/infrastructure-component/updateState';
 import StopInfrastructureComponent from '@pedreiro-web/app/actions/infrastructure-component/stop';
 import DestroyInfrastructureComponent from '@pedreiro-web/app/actions/infrastructure-component/destroy';
+import BuildAllComponents from '@pedreiro-web/app/actions/build_all';
+import BuildApplication from '@pedreiro-web/app/actions/application/build';
+import UpdateStateApplication from '@pedreiro-web/app/actions/application/updateState';
 
 // --- Aplicação Principal ---
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, type = 'info' }: any) => {
@@ -184,14 +187,17 @@ export default function Home({
 
     const handleNodeDrag = (id: any, x: any, y: any) => {
         const nodeSelected = nodes.filter(x => x.id == id)[0];
-        console.log(nodeSelected)
+        const rect = canvasRef.current.getBoundingClientRect();
         updatePosition(nodeSelected.code, { position_x: x, position_y: y }, nodeSelected.type == "container" ? 1 : 2);
         setNodes(prev => prev.map(node => node.id === id ? { ...node, position: { x, y } } : node));
     };
 
     const handleDeploy = () => {
         setIsDeploying(true);
-        setTimeout(() => setIsDeploying(false), 3000);
+
+        startTransition(function () {
+            formActionBuildAllComponents();
+        })
     };
 
     const exportConfig = () => {
@@ -394,6 +400,7 @@ export default function Home({
     const [stateSignout, formSignout, pendingSignout] = useActionState(Signout, {});
 
     const [stateBuildInfrastructureComponent, formActionBuildInfrastructureComponent, pendingBuildInfrastructureComponent] = useActionState(BuildInfrastructureComponent, undefined);
+    const [stateBuildApplication, formActionBuildApplication, pendingBuildApplication] = useActionState(BuildApplication, undefined);
     const [stateStopInfrastructureComponent, formActionStopInfrastructureComponent, pendingStopInfrastructureComponent] = useActionState(StopInfrastructureComponent, undefined);
     const [stateDestroyInfrastructureComponent, formActionDestroyInfrastructureComponent, pendingDestroyInfrastructureComponent] = useActionState(DestroyInfrastructureComponent, undefined);
 
@@ -420,6 +427,7 @@ export default function Home({
             ports: [],
             volumes: [],
             environments: [],
+            files: [],
             position_x: 200 + Math.random() * 200,
             position_y: 200 + Math.random() * 100
         }
@@ -434,7 +442,9 @@ export default function Home({
 
     const propsFormUpdateInfrastructureComponent = useForm<InfrastructureComponentUpdate>({
         resolver: zodResolver(InfrastructureComponentValidator),
-        defaultValues: {}
+        defaultValues: {
+            files: []
+        }
     });
 
     const typesInfrastructureComponent: any = {
@@ -474,7 +484,7 @@ export default function Home({
             ...applicationsSource.map(result => ({
                 id: `node-${result.name.toLowerCase().replace(/\s+/g, '-')}`,
                 code: result.id,
-                status: false,
+                status: result.alive,
                 // Se for WEB, usa 'container' (estilo escuro do Backend API)
                 // type: state.data.type === 'web' ? 'container' : 'database',
                 type: "container",
@@ -788,8 +798,58 @@ export default function Home({
         e.target.value = '';
     };
 
+    const handleFileChangeCreateInfrastructureComponent = async (e: any) => {
+        const files: File[] = Array.from(e.target.files);
+        const applicationFiles: InfrastructureComponentFileUpdate[] = [];
+        for (let index = 0; index < files.length; index++) {
+            const element = files[index];
+            const elementParsed: string = await fileToBase64(element);
+
+            applicationFiles.push({
+                file: elementParsed,
+                name: element.name
+            });
+        }
+
+        propsFormCreateInfrastructureComponent.setValue("files", [
+            ...propsFormCreateInfrastructureComponent.watch("files"),
+            ...applicationFiles
+        ]);
+
+        e.target.value = '';
+    };
+
+    const handleFileChangeUpdateInfrastructureComponent = async (e: any) => {
+        const files: File[] = Array.from(e.target.files);
+        const applicationFiles: InfrastructureComponentFileUpdate[] = [];
+        for (let index = 0; index < files.length; index++) {
+            const element = files[index];
+            const elementParsed: string = await fileToBase64(element);
+
+            applicationFiles.push({
+                file: elementParsed,
+                name: element.name
+            });
+        }
+
+        propsFormUpdateInfrastructureComponent.setValue("files", [
+            ...propsFormUpdateInfrastructureComponent.watch("files"),
+            ...applicationFiles
+        ]);
+
+        e.target.value = '';
+    };
+
     const removeFile = (index: number) => {
         propsFormUpdateApplication.setValue("files", propsFormUpdateApplication.watch("files").filter((x, indexFile) => indexFile != index));
+    };
+
+    const removeFileInfrastructureComponent = (index: number) => {
+        propsFormCreateInfrastructureComponent.setValue("files", propsFormCreateInfrastructureComponent.watch("files").filter((x, indexFile) => indexFile != index));
+    };
+
+    const removeFileInfrastructureComponentUpdate = (index: number) => {
+        propsFormUpdateInfrastructureComponent.setValue("files", propsFormUpdateInfrastructureComponent.watch("files").filter((x, indexFile) => indexFile != index));
     };
 
     const [dockerComposeDocument, setDockerComposeDocument] = useState<string>();
@@ -839,6 +899,14 @@ export default function Home({
         })
     }
 
+    const buildApplication = async () => {
+        isLoading(true);
+        setIsDeploying(true);
+        startTransition(function () {
+            formActionBuildApplication(selectedNode.code);
+        })
+    }
+
     const [stopOperationLoading, setStopOperationLoading] = useState<boolean>(false);
     const [destroyOperationLoading, setDestroyOperationLoading] = useState<boolean>(false);
 
@@ -876,7 +944,18 @@ export default function Home({
         }
     }, [stateDestroyInfrastructureComponent])
 
-    const [stateUpdateStateOfComponent, formActionUpdateStateOfComponent, pendingUpdateStateOfComponent, ] = useActionState(UpdateStateInfrastructureComponent, undefined);
+    const [stateUpdateStateOfComponent, formActionUpdateStateOfComponent, pendingUpdateStateOfComponent] = useActionState(UpdateStateInfrastructureComponent, undefined);
+    const [stateUpdateStateOfApplication, formActionUpdateStateOfApplication, pendingUpdateStateOfApplication] = useActionState(UpdateStateApplication, undefined);
+
+    const [stateBuildAllComponents, formActionBuildAllComponents, pendingBuildAllComponents] = useActionState(BuildAllComponents, undefined);
+
+    useEffect(function () {
+        if (stateBuildAllComponents) {
+            if (stateBuildAllComponents.status == 200) {
+                setIsDeploying(false);
+            }
+        }
+    }, [stateBuildAllComponents]);
 
     const [socket, setSocket] = useState<Socket | undefined>();
 
@@ -887,11 +966,24 @@ export default function Home({
                 setLocalLogOfBuild(stream);
             })
 
-            socket.on("update-state-resource", (resource: string) => {
-                var infrastructureComponent = infrastructureComponentsSource.filter(x => x.service_key == resource)[0];
-                startTransition(function () {
-                    formActionUpdateStateOfComponent(infrastructureComponent.id);
-                })
+            socket.on("update-state-resource", (message: { resource: string; state: string }) => {
+                var infrastructureComponent = infrastructureComponentsSource.filter(x => x.service_key == message.resource)[0];
+                var application = applicationsSource.filter(x => x.name == message.resource)[0];
+
+                if (infrastructureComponent) {
+                    startTransition(function () {
+                        formActionUpdateStateOfComponent(infrastructureComponent.id);
+                    })
+                }
+
+                if(application) {
+                    startTransition(function () {
+                        formActionUpdateStateOfApplication({
+                            id: application.id!,
+                            state: message.state
+                        });
+                    })
+                }
             })
         }
     }, [socket])
@@ -900,10 +992,15 @@ export default function Home({
 
     const loadLogsOfService = async () => {
         isLoading(true);
-
-        const request = await fetch(`${window.location.href}/api/logs/${selectedNode.code}`, { method: "GET" });
-        const response: { resource: string, operation: string, logs: Log[] }[] = await request.json();
-        setLocalLogOfBuild([...response]);
+        if (selectedNode.id.includes("infra")) {
+            const request = await fetch(`${window.location.href}/api/logs/infrastructure-component/${selectedNode.code}`, { method: "GET" });
+            const response: { resource: string, operation: string, logs: Log[] }[] = await request.json();
+            setLocalLogOfBuild([...response]);
+        } else {
+            const request = await fetch(`${window.location.href}/api/logs/application/${selectedNode.code}`, { method: "GET" });
+            const response: { resource: string, operation: string, logs: Log[] }[] = await request.json();
+            setLocalLogOfBuild([...response]);
+        }
 
         isLoading(false);
     }
@@ -920,6 +1017,13 @@ export default function Home({
             router.refresh();
         }
     }, [stateUpdateStateOfComponent])
+
+     useEffect(function () {
+        if (stateUpdateStateOfApplication && stateUpdateStateOfApplication.status == 200) {
+            isLoading(false);
+            router.refresh();
+        }
+    }, [stateUpdateStateOfApplication])
 
 
     useEffect(function () {
@@ -938,6 +1042,14 @@ export default function Home({
             loadLogsOfService();
         }
     }, [stateBuildInfrastructureComponent])
+
+    useEffect(function () {
+        if (stateBuildApplication && stateBuildApplication.status == 200) {
+            isLoading(false);
+            setIsDeploying(false);
+            loadLogsOfService();
+        }
+    }, [stateBuildApplication])
 
     return (
         <div
@@ -1233,6 +1345,55 @@ export default function Home({
                                                 ))
                                             }
                                         </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ficheiros de Configuração (.yaml, .env, etc)</label>
+                                        <div
+                                            onClick={() => fileInputUpdateRef.current?.click()}
+                                            className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center gap-2 hover:border-cyan-400 hover:bg-cyan-50/30 transition-all cursor-pointer group"
+                                        >
+                                            <input
+                                                type="file"
+                                                multiple
+                                                className="hidden"
+                                                ref={fileInputUpdateRef}
+                                                onChange={handleFileChangeUpdateInfrastructureComponent}
+                                            />
+                                            <div className="p-3 bg-slate-100 rounded-full group-hover:bg-cyan-100 transition-colors">
+                                                <UploadCloud size={24} className="text-slate-400 group-hover:text-cyan-600" />
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-xs font-bold text-slate-600">Clique para anexar ficheiros</p>
+                                                <p className="text-[10px] text-slate-400 mt-1">Manifestos, Secrets, Dockerfiles...</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Lista de Ficheiros Anexados */}
+                                        {propsFormUpdateInfrastructureComponent.watch("files").length > 0 && (
+                                            <div className="grid grid-cols-1 gap-2 mt-3 animate-in fade-in slide-in-from-top-2">
+                                                {propsFormUpdateInfrastructureComponent.watch("files").map((file: any, idx: number) => (
+                                                    <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl group hover:border-slate-200 transition-all">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="p-2 bg-white rounded-lg shadow-sm">
+                                                                <FileText size={16} className="text-cyan-600" />
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className="text-xs font-bold text-slate-700 truncate max-w-[200px]">{file.name}</span>
+                                                                {/* <span className="text-[9px] text-slate-400 uppercase">{(file.size / 1024).toFixed(1)} KB</span> */}
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeFileInfrastructureComponentUpdate(idx)}
+                                                            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -1672,6 +1833,55 @@ export default function Home({
                                                 ))
                                             }
                                         </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ficheiros de Configuração (.yaml, .env, etc)</label>
+                                        <div
+                                            onClick={() => fileInputUpdateRef.current?.click()}
+                                            className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center gap-2 hover:border-cyan-400 hover:bg-cyan-50/30 transition-all cursor-pointer group"
+                                        >
+                                            <input
+                                                type="file"
+                                                multiple
+                                                className="hidden"
+                                                ref={fileInputUpdateRef}
+                                                onChange={handleFileChangeCreateInfrastructureComponent}
+                                            />
+                                            <div className="p-3 bg-slate-100 rounded-full group-hover:bg-cyan-100 transition-colors">
+                                                <UploadCloud size={24} className="text-slate-400 group-hover:text-cyan-600" />
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-xs font-bold text-slate-600">Clique para anexar ficheiros</p>
+                                                <p className="text-[10px] text-slate-400 mt-1">Manifestos, Secrets, Dockerfiles...</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Lista de Ficheiros Anexados */}
+                                        {propsFormCreateInfrastructureComponent.watch("files").length > 0 && (
+                                            <div className="grid grid-cols-1 gap-2 mt-3 animate-in fade-in slide-in-from-top-2">
+                                                {propsFormCreateInfrastructureComponent.watch("files").map((file: any, idx: number) => (
+                                                    <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl group hover:border-slate-200 transition-all">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="p-2 bg-white rounded-lg shadow-sm">
+                                                                <FileText size={16} className="text-cyan-600" />
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className="text-xs font-bold text-slate-700 truncate max-w-[200px]">{file.name}</span>
+                                                                {/* <span className="text-[9px] text-slate-400 uppercase">{(file.size / 1024).toFixed(1)} KB</span> */}
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeFileInfrastructureComponent(idx)}
+                                                            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -2126,11 +2336,7 @@ export default function Home({
                                                 <Terminal size={18} /> Abrir Terminal de Node
                                             </button> */}
                                             {
-                                                localLogOfBuild.length > 0 && (
-                                                    localLogOfBuild[0].logs.length > 0 &&
-                                                    localLogOfBuild[0].operation == "start" &&
-                                                    !localLogOfBuild[0].logs.map(x => x.short_log.split("-")[2].replaceAll(" ", "")).includes("die")
-                                                ) ?
+                                                selectedNode.status ?
                                                     <div className='flex flex-row gap-4'>
                                                         <button
                                                             onClick={() => {
@@ -2155,7 +2361,11 @@ export default function Home({
                                                     </div> :
                                                     <button
                                                         onClick={() => {
-                                                            buildInfrastructureComponent();
+                                                            if (selectedNode.id.includes("infra")) {
+                                                                buildInfrastructureComponent();
+                                                            } else {
+                                                                buildApplication();
+                                                            }
                                                         }}
                                                         disabled={isDeploying || destroyOperationLoading || stopOperationLoading}
                                                         className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-black transition-colors cursor-pointer"

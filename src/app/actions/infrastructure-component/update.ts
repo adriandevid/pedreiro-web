@@ -1,8 +1,8 @@
 'use server';
 
 import { localdatabase } from "@pedreiro-web/infrastructure/database/config";
-import { InfrastructureComponent, InfrastructureComponentCommand, InfrastructureComponentEnvironment, InfrastructureComponentLabel, InfrastructureComponentNetwork, InfrastructureComponentPort, InfrastructureComponentUpdate, InfrastructureComponentVolume } from "@pedreiro-web/infrastructure/repository/types/infrastructure-component";
-import { createFile, readFile } from "@pedreiro-web/util/file";
+import { InfrastructureComponent, InfrastructureComponentCommand, InfrastructureComponentEnvironment, InfrastructureComponentFileUpdate, InfrastructureComponentLabel, InfrastructureComponentNetwork, InfrastructureComponentPort, InfrastructureComponentUpdate, InfrastructureComponentVolume } from "@pedreiro-web/infrastructure/repository/types/infrastructure-component";
+import { base64ToUt8, createFile, deleteFolder, readFile } from "@pedreiro-web/util/file";
 import { normalizeQuery } from "@pedreiro-web/util/normalizeQuery";
 import { parseJsonToYmlStringFormat } from "@pedreiro-web/util/parser";
 import { NextResponse } from "next/server";
@@ -20,6 +20,38 @@ export default async function UpdateInfrastructureComponent(prev: any, body: Inf
         entrypoint = '${body.entrypoint}', command = '${body.command}', restart = '${body.restart}'
         WHERE id = ${body.id};
     `)
+
+    var files = localdatabase.prepare(`select * from infrastructure_component_file where infrastructure_component_id = ${infrastructureComponentResult.id}`).all() as InfrastructureComponentFileUpdate[];
+
+    files.forEach(file => {
+        if (body.files?.filter(x => x.id == file.id).length == 0) {
+            localdatabase.exec(`
+                    DELETE FROM infrastructure_component_file
+                    WHERE id = ${file.id};
+                `)
+
+            deleteFolder(`./configuration/${file.name}`);
+        }
+    })
+
+    if (body.files != undefined && body.files.length > 0) {
+        body.files.filter(element => element.id != 0 && element.id != undefined).forEach(element => {
+            localdatabase.exec(`
+                    update infrastructure_component_file
+                    set name = '${element.name}', file = '${element.file}'
+                    where id = ${element.id}
+                `)
+        });
+
+        body.files.filter(element => element.id == 0 || element.id == undefined).forEach(element => {
+            localdatabase.exec(`
+                    insert into infrastructure_component_file(name, file, infrastructure_component_id)
+                    values ('${element.name}', '${element.file}', ${infrastructureComponentResult.id})    
+                `)
+
+            createFile(`./configuration/${element.name}`, base64ToUt8(element.file));
+        });
+    }
 
     if (body.commands && body.commands.length > 0) {
         infrastructureComponentResult.commands = localdatabase.prepare(`select * from infrastructure_component_command where infrastructure_component_id = ${body.id}`).all() as InfrastructureComponentCommand[];
@@ -49,7 +81,7 @@ export default async function UpdateInfrastructureComponent(prev: any, body: Inf
         })
 
         infrastructureComponentResult.commands = localdatabase.prepare(`select * from infrastructure_component_command where infrastructure_component_id = ${body.id}`).all() as InfrastructureComponentCommand[];
-    }else {
+    } else {
         infrastructureComponentResult.commands = []
     }
 
@@ -63,7 +95,7 @@ export default async function UpdateInfrastructureComponent(prev: any, body: Inf
                         where id = ${item.id}
                     `))
         })
-        
+
         infrastructureComponentResult.ports.forEach(port => {
             if (body.ports.filter(x => x.id != 0 && x.id != undefined && x.id == port.id).length == 0) {
                 localdatabase.exec(`
@@ -79,9 +111,9 @@ export default async function UpdateInfrastructureComponent(prev: any, body: Inf
                     values ('${port.port_bind}', ${body.id})
                 `))
         })
-        
+
         infrastructureComponentResult.ports = localdatabase.prepare(`select * from infrastructure_component_port where infrastructure_component_id = ${body.id}`).all() as InfrastructureComponentPort[];
-    }else {
+    } else {
         infrastructureComponentResult.ports = []
     }
 
@@ -96,7 +128,7 @@ export default async function UpdateInfrastructureComponent(prev: any, body: Inf
                     `))
 
         })
-        
+
         infrastructureComponentResult.volumes.forEach(volume => {
             if (body.volumes.filter(x => x.id == volume.id).length == 0) {
                 localdatabase.exec(`

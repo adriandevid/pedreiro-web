@@ -78,3 +78,24 @@ body {
 .animate-fade-out-slide {
   animation: animation-content-slide 1s ease-out;
 }
+
+.slider {
+  width: 100%;
+  overflow: hidden;
+  background: white;
+}
+
+.slide-track {
+  display: flex;
+  width: calc(200px * 6); /* Largura dos itens * total de itens */
+  animation: scroll 10s linear infinite; /* Animação infinita [12] */
+}
+
+.slide {
+  width: 200px;
+}
+
+@keyframes scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(calc(-200px * 3)); /* Move metade do total */ }
+}

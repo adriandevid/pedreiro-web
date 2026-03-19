@@ -2,11 +2,11 @@
 
 import { localdatabase } from "@pedreiro-web/infrastructure/database/config";
 import { InfrastructureComponentCreate, InfrastructureComponentCommand, InfrastructureComponentPort, InfrastructureComponentVolume, InfrastructureComponentNetwork, InfrastructureComponentLabel, InfrastructureComponentEnvironment, InfrastructureComponent } from "@pedreiro-web/infrastructure/repository/types/infrastructure-component";
-import { createFile, readFile } from "@pedreiro-web/util/file";
+import { base64ToUt8, createFile, readFile } from "@pedreiro-web/util/file";
 import { normalizeQuery } from "@pedreiro-web/util/normalizeQuery";
 import { parseJsonToYmlStringFormat } from "@pedreiro-web/util/parser";
 
-export default async function CreateInfrastructureComponent (prev: any, body: InfrastructureComponentCreate): Promise<any> {
+export default async function CreateInfrastructureComponent(prev: any, body: InfrastructureComponentCreate): Promise<any> {
 
     const infrastructureComponentsWithName = localdatabase.prepare(`select * from infrastructure_component where service_key = '${body.service_key}'`).all()
     const infrastructureComponentsResult: InfrastructureComponent[] = infrastructureComponentsWithName as InfrastructureComponent[];
@@ -22,6 +22,15 @@ export default async function CreateInfrastructureComponent (prev: any, body: In
 
     const lastInfrastructureComponentQuery = localdatabase.prepare("select * from infrastructure_component order by id desc limit 1").all();
     const lastInfrastructureComponentQueryResult: InfrastructureComponent = lastInfrastructureComponentQuery[0] as InfrastructureComponent
+
+    body.files.forEach(file => {
+        localdatabase.exec(`
+                insert into infrastructure_component_file(name, file, infrastructure_component_id)
+                values ('${file.name}', '${file.file}', ${lastInfrastructureComponentQueryResult.id})    
+        `)
+        
+         createFile(`./configuration/${file.name}`, base64ToUt8(file.file));
+    });
 
     if (body.commands && body.commands.length > 0) {
         body.commands.forEach(item => {
@@ -101,7 +110,7 @@ export default async function CreateInfrastructureComponent (prev: any, body: In
             ...lastInfrastructureComponentQueryResult,
             ports: lastInfrastructureComponentQueryResult.ports != undefined ? lastInfrastructureComponentQueryResult.ports.map(x => x.port_bind) : [],
             commands: lastInfrastructureComponentQueryResult.commands != undefined ? lastInfrastructureComponentQueryResult.commands.map(x => x.command) : [],
-            environment: lastInfrastructureComponentQueryResult.environments != undefined ?  lastInfrastructureComponentQueryResult.environments.map(x => ({
+            environment: lastInfrastructureComponentQueryResult.environments != undefined ? lastInfrastructureComponentQueryResult.environments.map(x => ({
                 [x.environment_name]: x.environment_value
             })) : [],
             labels: lastInfrastructureComponentQueryResult.labels != undefined ? lastInfrastructureComponentQueryResult.labels.map(x => x.label) : [],

@@ -237,6 +237,7 @@ if (!fs.existsSync(`./src/infrastructure/database/mydatabase.db`)) {
         image_pull_policy varchar(100) not null default 'Always',
         replicas integer not null default 1,
         configuration_id integer not null,
+        alive bool not null,
         position_x integer not null,
         position_y integer not null,
         constraint configuration_id_c foreign key (configuration_id) references configuration(id) on delete cascade
@@ -264,6 +265,14 @@ if (!fs.existsSync(`./src/infrastructure/database/mydatabase.db`)) {
         restart varchar(100) not null default 'always',
         configuration_id integer not null,
         constraint configuration_id_c foreign key (configuration_id) references configuration(id) on delete cascade
+    );
+
+    create table infrastructure_component_file(
+        id integer primary key autoincrement,
+        name varchar(100) not null,
+        file text not null,
+        infrastructure_component_id integer not null,
+        constraint infrastructure_component_id_c foreign key (infrastructure_component_id) references infrastructure_component(id) on delete cascade
     );
 
     create table infrastructure_component_command(

@@ -20,6 +20,7 @@ export type Application = {
   position_x: number
   position_y: number
   files: ApplicationFile[]
+  alive: boolean
 }
 
 export type ApplicationFile = {

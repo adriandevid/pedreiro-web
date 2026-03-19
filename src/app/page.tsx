@@ -30,7 +30,8 @@ export default async function App() {
 
   // console.log(totalmem(), freemem(), memoryUsage());
 
-  var memory: MemoryInformations = { size: 0 }
+  var memory: MemoryInformations = { size: 0 };
+  
   if(platform== "win32") {
     memory = await getLocalMemoryInformations();
   } 

@@ -37,7 +37,7 @@ const Docker = require("dockerode");
 const app = next({ dev: process.env.NODE_ENV !== "production" });
 const handler = app.getRequestHandler();
 
-const localdatabase = new Database('./src/infrastructure/database/mydatabase.db', { verbose: console.log });
+const localdatabase = new Database('./src/infrastructure/database/mydatabase.db');
 
 app.prepare().then(() => {
     const httpServer = createServer(handler);
@@ -45,6 +45,7 @@ app.prepare().then(() => {
 
     io.on("connection", async (socket: any) => {
         console.log("Client connected");
+
         const dockerode = new Docker();
 
         const eventsOfNetwork = await dockerode.getEvents();
@@ -86,6 +87,21 @@ app.prepare().then(() => {
                     })
 
                     io.emit(`logs-container`, JSON.stringify(streams));
+
+                    if (
+                        (
+                            streams[0].operation == "start" &&
+                            streams[0].logs.filter(x => x.short_log.includes("start")).length > 0 &&
+                            !(streams[0].logs.filter(x => x.short_log.includes("die")).length > 0)
+                        ) ||
+                        (streams[0].operation == "stop" && (
+                            streams[0].logs[streams[0].logs.length - 1].short_log.includes("die") ||
+                            streams[0].logs[streams[0].logs.length - 1].short_log.includes("stop")
+                        )) ||
+                        (streams[0].operation == "down" && streams[0].logs[streams[0].logs.length - 1].short_log.includes("destroy"))
+                    ) {
+                        io.emit(`update-state-resource`, streams[0].resource);
+                    }
                 }
             } catch (ex) {
                 console.log(ex);

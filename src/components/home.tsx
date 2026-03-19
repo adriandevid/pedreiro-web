@@ -876,7 +876,7 @@ export default function Home({
         }
     }, [stateDestroyInfrastructureComponent])
 
-    const [stateUpdateStateOfComponent, formActionUpdateStateOfComponent, pendingUpdateStateOfComponent] = useActionState(UpdateStateInfrastructureComponent, undefined);
+    const [stateUpdateStateOfComponent, formActionUpdateStateOfComponent, pendingUpdateStateOfComponent, ] = useActionState(UpdateStateInfrastructureComponent, undefined);
 
     const [socket, setSocket] = useState<Socket | undefined>();
 
@@ -885,6 +885,13 @@ export default function Home({
             socket.on(`logs-container`, (msg) => {
                 var stream: { resource: string, operation: string, logs: Log[] }[] = JSON.parse(msg);
                 setLocalLogOfBuild(stream);
+            })
+
+            socket.on("update-state-resource", (resource: string) => {
+                var infrastructureComponent = infrastructureComponentsSource.filter(x => x.service_key == resource)[0];
+                startTransition(function () {
+                    formActionUpdateStateOfComponent(infrastructureComponent.id);
+                })
             })
         }
     }, [socket])
@@ -906,37 +913,6 @@ export default function Home({
             loadLogsOfService();
         }
     }, [selectedNodeId])
-
-    useEffect(function () {
-        if (localLogOfBuild.length > 0) {
-            var isInfrastructureComponent = infrastructureComponentsSource.filter(x => x.service_key == localLogOfBuild[localLogOfBuild.length - 1].resource).length > 0;
-            if (isInfrastructureComponent) {
-                const lastStreamLog = localLogOfBuild[localLogOfBuild.length - 1];
-                var infrastructureComponent = infrastructureComponentsSource.filter(x => x.service_key == localLogOfBuild[localLogOfBuild.length - 1].resource)[0];
-                isLoading(true);
-
-                if (lastStreamLog.operation == "start" && lastStreamLog.logs.filter(x => x.short_log.includes("start"))) {
-
-                    startTransition(function () {
-                        formActionUpdateStateOfComponent(infrastructureComponent.id);
-                    })
-                } else if (lastStreamLog.operation == "stop" && lastStreamLog.logs[lastStreamLog.logs.length - 1].short_log.includes("die")) {
-
-                    startTransition(function () {
-                        formActionUpdateStateOfComponent(infrastructureComponent.id);
-                    })
-                } else if (lastStreamLog.operation == "down" && lastStreamLog.logs[lastStreamLog.logs.length - 1].short_log.includes("destroy")) {
-
-
-                    startTransition(function () {
-                        formActionUpdateStateOfComponent(infrastructureComponent.id);
-                    })
-                } else {
-                    isLoading(false);
-                }
-            }
-        }
-    }, [localLogOfBuild])
 
     useEffect(function () {
         if (stateUpdateStateOfComponent && stateUpdateStateOfComponent.status == 200) {

@@ -212,18 +212,6 @@ app.prepare().then(() => {
             }
         };
 
-        // Start the watch stream
-        const req = watch.watch(
-            uri,
-            queryParams,
-            callback,
-            // Optional: a done callback that is called when the watch connection closes
-            (err: any) => {
-                console.error('Watch connection closed:', err);
-                // Implement reconnection logic here
-            }
-        );
-
         const dockerode = new Docker();
 
         const eventsOfNetwork = await dockerode.getEvents();
@@ -285,6 +273,17 @@ app.prepare().then(() => {
                 console.log(ex);
             }
         })
+
+        watch.watch(
+            uri,
+            queryParams,
+            callback,
+            // Optional: a done callback that is called when the watch connection closes
+            (err: any) => {
+                console.error('Watch connection closed:', err);
+                // Implement reconnection logic here
+            }
+        );
     });
 
     httpServer.listen(3000);

@@ -69,6 +69,7 @@ import DestroyInfrastructureComponent from '@pedreiro-web/app/actions/infrastruc
 import BuildAllComponents from '@pedreiro-web/app/actions/build_all';
 import BuildApplication from '@pedreiro-web/app/actions/application/build';
 import UpdateStateApplication from '@pedreiro-web/app/actions/application/updateState';
+import MapInterator from './mapInterator';
 
 // --- Aplicação Principal ---
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, type = 'info' }: any) => {
@@ -279,84 +280,6 @@ export default function Home({
         const rect = canvasRef.current.getBoundingClientRect();
         setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
     };
-
-    const MapInterator = () => (
-        <div
-            ref={canvasRef}
-            className="relative w-full h-full overflow-auto"
-            onMouseMove={handleMouseMoveCanvas}
-            onMouseUp={() => setTempEdge(null)}
-            style={{
-                zoom: scaleMap
-            }}
-        >
-            <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                <defs>
-                    <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                        <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8" />
-                    </marker>
-                </defs>
-
-                {/* Edges Existentes */}
-                {edges.map(edge => (
-                    <g key={edge.id} className="cursor-pointer group pointer-events-auto" onClick={(e) => { e.stopPropagation(); removeEdge(edge.id); }}>
-                        <path
-                            d={getPath(edge.source, edge.target)}
-                            stroke="#cbd5e1"
-                            strokeWidth="6"
-                            fill="none"
-                            className="opacity-0 group-hover:opacity-20 transition-opacity stroke-red-500"
-                        />
-                        <path
-                            d={getPath(edge.source, edge.target)}
-                            stroke="#cbd5e1"
-                            strokeWidth="2"
-                            fill="none"
-                            markerEnd="url(#arrow)"
-                            className="group-hover:stroke-cyan-400 transition-colors"
-                        />
-                    </g>
-                ))}
-
-                {/* Edge Temporária sendo desenhada */}
-                {tempEdge && (
-                    <path
-                        d={`M ${nodes.find(n => n.id === tempEdge.sourceId).position.x + 90} ${nodes.find(n => n.id === tempEdge.sourceId).position.y + 40} L ${mousePos.x} ${mousePos.y}`}
-                        stroke="#22d3ee"
-                        strokeWidth="2"
-                        strokeDasharray="4,4"
-                        fill="none"
-                    />
-                )}
-                {/* Edge Temporária sendo desenhada */}
-                {tempEdge && (
-                    <path
-                        d={`M ${nodes.find(n => n.id === tempEdge.sourceId).position.x + 90} ${nodes.find(n => n.id === tempEdge.sourceId).position.y + 40} L ${mousePos.x} ${mousePos.y}`}
-                        stroke="#22d3ee"
-                        strokeWidth="2"
-                        strokeDasharray="4,4"
-                        fill="none"
-                    />
-                )}
-            </svg>
-
-            {nodes.map(node => (
-                <CustomNode
-                    key={node.id}
-                    node={node}
-                    activeSelectNode={activedSelectNode}
-                    isSelected={selectedNodeId === node.id}
-                    onClick={(nodeId: string) => {
-                        setSelectedNodeId(nodeId)
-                        setShowContentDetails(true)
-                    }}
-                    onDrag={handleNodeDrag}
-                    onStartConnect={startConnect}
-                    onEndConnect={endConnect}
-                />
-            ))}
-        </div>
-    )
 
     const [showAddModal, setShowAddModal] = useState<boolean>(false);
     const [formData, setFormData] = useState({
@@ -976,7 +899,7 @@ export default function Home({
                     })
                 }
 
-                if(application) {
+                if (application) {
                     startTransition(function () {
                         formActionUpdateStateOfApplication({
                             id: application.id!,
@@ -1018,7 +941,7 @@ export default function Home({
         }
     }, [stateUpdateStateOfComponent])
 
-     useEffect(function () {
+    useEffect(function () {
         if (stateUpdateStateOfApplication && stateUpdateStateOfApplication.status == 200) {
             isLoading(false);
             router.refresh();
@@ -2237,7 +2160,25 @@ export default function Home({
                         </div>
 
                         {/* Nodes e Conexões */}
-                        <MapInterator />
+                        <MapInterator
+                            ref={canvasRef}
+                            onMouseMove={handleMouseMoveCanvas}
+                            onMouseUp={() => setTempEdge(null)}
+                            zoom={scaleMap}
+                            nodes={nodes}
+                            edges={edges}
+                            tempEdge={tempEdge}
+                            selectedNodeId={selectedNodeId}
+                            onClickNode={(nodeId: string) => {
+                                setSelectedNodeId(nodeId)
+                                setShowContentDetails(true)
+                            }}
+                            handleNodeDragNode={handleNodeDrag}
+                            startConnectNode={startConnect}
+                            endConnectNode={endConnect}
+                            removeEdgeEvent={removeEdge}
+                            mousePos={mousePos}
+                        ></MapInterator>
 
                         {/* Legenda Flutuante */}
                         <div className="absolute bottom-6 left-6 bg-white/80 backdrop-blur-md p-3 rounded-xl border border-slate-200 shadow-lg text-[10px] font-bold text-slate-500 uppercase tracking-widest flex gap-4 z-20">

@@ -33,7 +33,9 @@ export default function MapInterator({
     startConnectNode,
     endConnectNode,
     removeEdgeEvent,
-    mousePos
+    mousePos,
+    activeSelectNode,
+    activedSelectNode
 }: {
     ref: any
     onMouseMove: any
@@ -48,10 +50,10 @@ export default function MapInterator({
     startConnectNode: any
     endConnectNode: any
     removeEdgeEvent: any
-    mousePos: any
+    mousePos: any,
+    activeSelectNode: any
+    activedSelectNode: boolean
 }) {
-    const [activedSelectNode, activeSelectNode] = useState<boolean>(false);
-    
     const getPath = (sourceId: any, targetId: any) => {
         const sNode = nodes.find((n: Node) => n.id === sourceId);
         const tNode = nodes.find((n: Node) => n.id === targetId);

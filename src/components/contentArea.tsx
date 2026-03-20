@@ -25,7 +25,20 @@ export default function ContentArea({
     editResourceAction,
     dockerComposeDocument,
     localLogOfBuild,
-    loadLogsOfService
+    loadLogsOfService,
+    fileTemplates,
+    canvasRef,
+    contentPage,
+    infrastructureComponentsSource,
+    edgesSource,
+    applicationsSource,
+    fileContents,
+    setFileContents,
+    selectedNodeId,
+    setSelectedNodeId,
+    selectedNode,
+    setShowContentDetails,
+    showContentDetails
 }: {
     nodes: Node[],
     showNotify: any,
@@ -38,30 +51,26 @@ export default function ContentArea({
     setIsDeploying: any,
     isDeploying: boolean,
     editResourceAction: (resourceId: string) => void,
-    dockerComposeDocument: string,
+    dockerComposeDocument?: string | undefined,
     localLogOfBuild: { operation: string, resource: string, logs: Log[] }[],
     loadLogsOfService: any
-
+    fileTemplates: any
+    canvasRef: any
+    contentPage: any
+    infrastructureComponentsSource: InfrastructureComponent[]
+    edgesSource: Edge[]
+    applicationsSource: Application[]
+    fileContents: any
+    setFileContents: any
+    selectedNodeId: any
+    setSelectedNodeId: any
+    selectedNode: any
+    setShowContentDetails: any
+    showContentDetails: boolean
 }) {
     const [scaleMap, setScaleMap] = useState<number>(1.0);
-    const [selectedNodeId, setSelectedNodeId] = useState<string | null>('node-api');
     const [activeFile, setActiveFile] = useState('docker-compose.yml');
-
-    const selectedNode = useMemo(() => nodes.find(n => n.id === selectedNodeId), [nodes, selectedNodeId]);
-    const fileTemplates: any = useMemo(() => ({
-        'docker-compose.yml': `version: '3.8'\nservices:\n  api:\n    build: ./backend\n    ports:\n      - "5000:5000"\n    depends_on:\n      - db\n  web:\n    image: nginx:stable\n    ports:\n      - "80:80"\n  db:\n    image: postgres:15\n    environment:\n      POSTGRES_PASSWORD: example`,
-        'deployment.yml': `apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: api-deployment\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: backend-api\n  template:\n    metadata:\n      labels:\n        app: backend-api\n    spec:\n      containers:\n      - name: api\n        image: backend-image:v1`,
-        'Dockerfile': `FROM node:18-alpine\nWORKDIR /app\nCOPY package*.json ./\nRUN npm install\nCOPY . .\nEXPOSE 5000\nCMD ["npm", "start"]`,
-        'service.yml': `apiVersion: v1\nkind: Service\nmetadata:\n  name: api-service\nspec:\n  selector:\n    app: backend-api\n  ports:\n    - protocol: TCP\n      port: 80\n      targetPort: 5000`
-    }), []);
-
-    const [showContentDetails, setShowContentDetails] = useState<boolean>(false);
     const [activedSelectNode, activeSelectNode] = useState<boolean>(false);
-
-    const contentPage = useRef<any>(null);
-    const canvasRef = useRef<any>(null);
-
-
 
     const updatePosition = async (code: number, content: { position_x: number, position_y: number }, type: number) => {
         if (type == 1) {
@@ -230,6 +239,94 @@ export default function ContentArea({
         }
     }, [stateDestroyInfrastructureComponent])
 
+    const typesInfrastructureComponent: any = {
+        "db": "database",
+        "mq": "service",
+        "redis": "database",
+        "sftr": "service" // software resource
+    }
+
+    useEffect(function () {
+        setEdges(edgesSource.map((edge: any) => {
+            const newEdge = {
+                id: `e-${edge.id}`,
+                source: edge.source_id,
+                target: edge.target_id
+            };
+
+            return newEdge;
+        }));
+        const nodesDefault = [
+            ...infrastructureComponentsSource.map((result: InfrastructureComponent) => ({
+                id: `node-infra-${result.service_key.toLowerCase().replace(/\s+/g, '-')}`,
+                // Se for WEB, usa 'container' (estilo escuro do Backend API)
+                type: typesInfrastructureComponent[result.type],
+                code: result.id,
+                status: result.alive,
+                data: {
+                    label: result.service_key,
+                    image: result.image,
+                    port: result.ports.length > 0 ? result.ports.map(x => x.port_bind).join(",") : "-",
+                    subType: result.type,
+                    uptime: '0h',
+                    cpu: '0%'
+                },
+                position: { x: result.position_x, y: result.position_y }
+            })),
+            ...applicationsSource.map(result => ({
+                id: `node-${result.name.toLowerCase().replace(/\s+/g, '-')}`,
+                code: result.id,
+                status: result.alive,
+                // Se for WEB, usa 'container' (estilo escuro do Backend API)
+                // type: state.data.type === 'web' ? 'container' : 'database',
+                type: "container",
+                data: {
+                    label: result.name,
+                    image: result.image,
+                    port: result.port,
+                    // subType: formData.type === 'web' ? 'api' : formData.subType,
+                    subType: "container",
+                    uptime: '0h',
+                    cpu: '0%'
+                },
+                position: { x: result.position_x, y: result.position_y }
+            }))
+        ]
+        const fileContentsDefault = [
+            ...infrastructureComponentsSource.map(result => {
+                const composeEntry = `\n  ${result.service_key.toLowerCase()}:\n    image: ${result.image}\n `;
+                const updated: any = { ...fileContents };
+                updated['docker-compose.yml'] = fileContents['docker-compose.yml'] + composeEntry;
+                return updated;
+            }),
+            ...applicationsSource.map(result => {
+                const composeEntry = `\n  ${result.name.toLowerCase()}:\n    image: ${result.image}\n    ports:\n      - "${result.port}:${result.port}"`;
+
+                const updated: any = { ...fileContents };
+                updated['docker-compose.yml'] = fileContents['docker-compose.yml'] + composeEntry;
+
+                // if (formData.type === 'web') {
+
+                // }
+                updated[`${result.name.toLowerCase()}-deployment.yml`] = `apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: ${result.name.toLowerCase()}-deployment\nspec:\n  replicas: ${result.replicas}\n  selector:\n    matchLabels:\n      app: ${result.name.toLowerCase()}\n  template:\n    metadata:\n      labels:\n        app: ${result.name.toLowerCase()}\n    spec:\n      containers:\n      - name: ${result.name.toLowerCase()}\n        image: ${result.image}`;
+                updated[`${result.name.toLowerCase()}-service.yml`] = `apiVersion: v1\nkind: Service\nmetadata:\n  name: ${result.name.toLowerCase()}-service\nspec:\n  selector:\n    app: ${result.name.toLowerCase()}\n  ports:\n    - protocol: TCP\n      port: 80\n      targetPort: ${result.port}`;
+
+                return updated;
+            })
+        ]
+
+        setFileContents(fileContentsDefault);
+        setNodes(nodesDefault);
+    }, [infrastructureComponentsSource, applicationsSource, edgesSource])
+
+    useEffect(function () {
+        if (containerResizePositionMove) {
+            if (containerResizeRef != null && contentDetailsRef != null) {
+                contentDetailsRef.current.style.width = `${containerResizePositionMove.x}px`
+            }
+        }
+    }, [containerResizePositionMove])
+
     return (
         <div className="flex-1 flex overflow-hidden relative">
 
@@ -292,6 +389,8 @@ export default function ContentArea({
                     endConnectNode={endConnect}
                     removeEdgeEvent={removeEdge}
                     mousePos={mousePos}
+                    activeSelectNode={activeSelectNode}
+                    activedSelectNode={activedSelectNode}
                 ></MapInterator>
 
                 {/* Legenda Flutuante */}
@@ -432,30 +531,7 @@ export default function ContentArea({
                                     <button
                                         type='button'
                                         onClick={async () => {
-
                                             editResourceAction(selectedNode.id);
-                                            /*  if (selectedNode.id.includes("infra")) {
-                                                 editResourceAction()
-                                                 const serviceResponse = await fetch(`${window.location.href}/api/infrastructure-component/${selectedNode.code}`, { method: "GET" });
-                                                 const responseJson: InfrastructureComponent = await serviceResponse.json();
-                                                 propsFormUpdateInfrastructureComponent.reset({
-                                                     ...responseJson
-                                                 });
- 
-                                                 setShowEditInfrastructureModal(true);
-                                             } else {
-                                                 const serviceResponse = await fetch(`${window.location.href}/api/applications/${selectedNode.code}`, { method: "GET" });
-                                                 const responseJson: Application = await serviceResponse.json();
-                                                 propsFormUpdateApplication.reset({
-                                                     ...responseJson,
-                                                     port: `${responseJson.port}`,
-                                                     node_port: `${responseJson.node_port}`,
-                                                     target_port: `${responseJson.target_port}`,
-                                                     replicas: `${responseJson.replicas}`
-                                                 });
- 
-                                                 setShowEditAppplicationModal(true);
-                                             } */
                                         }}
                                         className="w-full py-3 border mt-2 cursor-pointer border-slate-900 text-slate-900 rounded-xl font-bold flex items-center cursor-pointer justify-center gap-2 hover:text-white hover:bg-slate-900 transition-colors"
                                         disabled={isDeploying || destroyOperationLoading || stopOperationLoading}
@@ -468,12 +544,16 @@ export default function ContentArea({
                     ) : (
                         /* Editor de Código */
                         <div className="flex-1 relative overflow-hidden group bg-slate-900">
-                            <textarea
-                                className="w-full h-full p-8 font-mono text-sm bg-slate-900 text-cyan-50/90 outline-none resize-none selection:bg-cyan-500/30 leading-relaxed scrollbar-hide"
-                                spellCheck="false"
-                                value={dockerComposeDocument}
-                            //onChange={(e) => setCode(e.target.value)}
-                            />
+                            {
+                                dockerComposeDocument && (
+                                    <textarea
+                                        className="w-full h-full p-8 font-mono text-sm bg-slate-900 text-cyan-50/90 outline-none resize-none selection:bg-cyan-500/30 leading-relaxed scrollbar-hide"
+                                        spellCheck="false"
+                                        defaultValue={dockerComposeDocument}
+                                        //onChange={(e) => setCode(e.target.value)}
+                                    />
+                                )
+                            }
                         </div>
                     )}
                 </div>

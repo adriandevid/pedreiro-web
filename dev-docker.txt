@@ -1,3 +1,5 @@
+minikube start --addons registry --cni=calico
+
 @FOR /f "tokens=*" %i IN ('minikube docker-env --shell cmd') DO @%i
 
 execute o commando para criar as imagens no minikube.

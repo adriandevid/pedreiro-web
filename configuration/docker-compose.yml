@@ -1,7 +1,6 @@
 
 services:
 
-
 #start registry
   registry: 
     image: registry:3 

@@ -2,7 +2,7 @@ import { localdatabase } from "@pedreiro-web/infrastructure/database/config";
 import { exec } from "child_process";
 import { NextRequest, NextResponse } from "next/server";
 
-async function GET(request: NextRequest, { params }: { params: Promise<{ id: number }> }) {
+async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const executeCommand = new Promise<string>((resolve, reject) => {
         exec(`wsl docker ps`,{ windowsHide: true }, (error, stdout, stderr) => {
             if (error) {

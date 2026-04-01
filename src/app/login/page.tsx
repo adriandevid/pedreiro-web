@@ -29,22 +29,7 @@ export default function Page() {
         }
     }, [stateSignin])
 
-    const query = useSearchParams();
-
     const [notification, setNotification] = useState<any>(null);
-
-    const showNotify = (text: any) => {
-        setNotification(text);
-        setTimeout(() => setNotification(null), 3000);
-    };
-
-    useEffect(function () {
-        var statusParam = query.get("status")
-        if (statusParam != null) {
-            showNotify("Usuário não autorizado!");
-            router.replace('/login', { scroll: true });
-        }
-    }, [])
 
     return (
         <div className="h-screen w-full bg-slate-950 flex items-center justify-center p-6 relative overflow-hidden font-sans">

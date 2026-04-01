@@ -4,8 +4,7 @@ import { localdatabase } from "@pedreiro-web/infrastructure/database/config";
 import { Edge } from "@pedreiro-web/infrastructure/repository/types";
 import { Application } from "@pedreiro-web/infrastructure/repository/types/application";
 import { InfrastructureComponent, InfrastructureComponentCommand, InfrastructureComponentEnvironment, InfrastructureComponentLabel, InfrastructureComponentNetwork, InfrastructureComponentPort, InfrastructureComponentVolume } from "@pedreiro-web/infrastructure/repository/types/infrastructure-component";
-import { platform } from "process";
-import { getLocalMemoryInformations, getLocalMemoryInformationsLinux, MemoryInformations } from "@pedreiro-web/util/plataform";
+import { MemoryInformations } from "@pedreiro-web/util/plataform";
 
 export default async function App() {
   const edges = localdatabase.prepare(`select * from edges`).all()
@@ -25,16 +24,14 @@ export default async function App() {
     infrastructureComponent.environments = localdatabase.prepare(`select * from infrastructure_component_environment where infrastructure_component_id = ${infrastructureComponent.id}`).all() as InfrastructureComponentEnvironment[];
   })
 
-  // console.log(totalmem(), freemem(), memoryUsage());
-
   var memory: MemoryInformations = { size: 0 };
   
-  if(platform== "win32") {
-    memory = await getLocalMemoryInformations();
-  } 
-  else {
-    memory = await getLocalMemoryInformationsLinux();
-  }
+  // if(platform== "win32") {
+  //   memory = await getLocalMemoryInformations();
+  // } 
+  // else {
+  //   memory = await getLocalMemoryInformationsLinux();
+  // }
 
   return (<Home computerMemory={memory} edgesSource={edgesResult} applicationsSource={applicationsResult} infrastructureComponentsSource={infrastructureComponents}></Home>)
 }

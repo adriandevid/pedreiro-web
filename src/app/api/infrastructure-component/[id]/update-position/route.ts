@@ -3,7 +3,7 @@ import { ApplicationUpdate } from "@pedreiro-web/infrastructure/repository/types
 import { NextRequest, NextResponse } from "next/server";
 
 
-async function PUT(request: NextRequest, { params }: { params: Promise<{ id: number }> }) {
+async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
     const body: ApplicationUpdate = await request.json();
     const row = localdatabase.prepare(`select * from infrastructure_component where id = ${id}`).all();

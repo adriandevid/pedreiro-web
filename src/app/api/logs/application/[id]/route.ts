@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { localdatabase } from "@pedreiro-web/infrastructure/database/config";
 import { Application } from "@pedreiro-web/infrastructure/repository/types/application";
 
-async function GET(request: NextRequest, { params }: { params: Promise<{ id: number }> }) {
+async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
 
     const applications = localdatabase.prepare(`select * from application where id = ${id}`).all() as Application[];

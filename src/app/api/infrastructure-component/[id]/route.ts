@@ -4,7 +4,7 @@ import { createFile, readFile } from "@pedreiro-web/util/file";
 import { normalizeQuery } from "@pedreiro-web/util/normalizeQuery";
 import { NextRequest, NextResponse } from "next/server";
 
-async function GET(request: NextRequest, { params }: { params: Promise<{ id: number }> }) {
+async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
 
     const infrastructureComponents = localdatabase.prepare(`select * from infrastructure_component where id = ${id}`).all() as InfrastructureComponent[];
@@ -20,7 +20,7 @@ async function GET(request: NextRequest, { params }: { params: Promise<{ id: num
 
     return NextResponse.json(infrastructureComponent, { status: 200 })
 }
-async function PUT(request: NextRequest, { params }: { params: Promise<{ id: number }> }) {
+async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
     const body: InfrastructureComponent = await request.json();
     const row = localdatabase.prepare(`select * from infrastructure_component where id = ${id}`).all();
@@ -216,7 +216,7 @@ async function PUT(request: NextRequest, { params }: { params: Promise<{ id: num
 
 }
 
-async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: number }> }) {
+async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
 
     const row = localdatabase.prepare(`select * from infrastructure_component where id = ${id}`).all();

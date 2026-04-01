@@ -94,5 +94,4 @@ spec:
     return NextResponse.json(applicationCreatedResult, { status: 200 })
 }
 
-
 export { GET, POST }

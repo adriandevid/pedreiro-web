@@ -172,8 +172,8 @@ app.prepare().then(() => {
         const kc = new k8s.KubeConfig();
         kc.loadFromDefault({
             clusters: [{
-                name: 'my-server',
-                server: 'http://localhost:8080',
+                name: process.env.CLUSTER_NAME,
+                server: process.env.CLUSTER_SERVER,
             }]
         });
 

@@ -4,7 +4,7 @@ import { deleteFolder } from "@pedreiro-web/util/file";
 import { NextRequest, NextResponse } from "next/server";
 
 
-async function PUT(request: NextRequest, { params }: { params: Promise<{ id: number }> }) {
+async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
     const body: ApplicationUpdate = await request.json();
     const row = localdatabase.prepare(`select * from application where id = ${id}`).all();

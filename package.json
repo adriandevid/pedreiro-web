@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node --no-warnings init.ts && node --no-warnings server.ts",
     "build": "next build",
-    "start": "node --no-warnings init.ts && next start",
+    "start": "node --no-warnings init.ts && node --no-warnings server.ts",
     "lint": "eslint"
   },
   "dependencies": {

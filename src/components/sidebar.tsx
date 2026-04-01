@@ -77,7 +77,7 @@ export default function Sidebar({
             </nav>
 
             <div className="p-4 border-t border-slate-800">
-                <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 text-xs">
+                {/* <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 text-xs">
                     <div className="flex justify-between items-center mb-2 text-slate-400">
                         <span className="flex items-center gap-1.5"><CardSim size={12} /> Memória Total</span>
                         <span className="text-cyan-400 font-bold">{computerMemory.freeSpace ? ((computerMemory.size / 1000000) * 0.001).toFixed(1) : computerMemory.size}gb</span>
@@ -87,7 +87,7 @@ export default function Sidebar({
                             width: `${((((computerMemory.size / 1000000) * 0.001) - (computerMemory.freeSpace ? ((computerMemory.freeSpace / 1000000) * 0.001) : 0)) / ((computerMemory.size / 1000000) * 0.001)) * 100}%`
                         }} className="bg-cyan-500 h-full w-[42%] transition-all duration-1000"></div>
                     </div>
-                </div>
+                </div> */}
                 <div className="p-4">
                     <button
                         onClick={() => setShowAddModal(true)}

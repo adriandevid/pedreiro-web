@@ -2,7 +2,7 @@ import { InfrastructureComponent, Log } from "@pedreiro-web/infrastructure/repos
 import { NextRequest, NextResponse } from "next/server";
 import { localdatabase } from "@pedreiro-web/infrastructure/database/config";
 
-async function GET(request: NextRequest, { params }: { params: Promise<{ id: number }> }) {
+async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
 
     const infrastructureComponents = localdatabase.prepare(`select * from infrastructure_component where id = ${id}`).all() as InfrastructureComponent[];

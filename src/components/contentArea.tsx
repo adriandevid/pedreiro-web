@@ -500,20 +500,6 @@ export default function ContentArea({
                             </div>
 
                             <div className="space-y-6">
-                                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
-                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Métricas Atuais</div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                                            <div className="flex items-center gap-2 text-slate-500 text-xs mb-1"><Cpu size={14} /> CPU</div>
-                                            <div className="text-lg font-bold text-slate-800">{selectedNode.data.cpu}</div>
-                                        </div>
-                                        <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                                            <div className="flex items-center gap-2 text-slate-500 text-xs mb-1"><HardDrive size={14} /> RAM</div>
-                                            <div className="text-lg font-bold text-slate-800">128MB</div>
-                                        </div>
-                                    </div>
-                                </div>
-
                                 <div className="space-y-3">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Propriedades</label>
                                     <div className="space-y-2">

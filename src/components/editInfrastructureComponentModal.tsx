@@ -83,10 +83,6 @@ export default function EditInfrastructureComponentModal({
         propsFormUpdateInfrastructureComponent.reset({ ...infrastructureComponent });
     }, [infrastructureComponent])
 
-    propsFormUpdateInfrastructureComponent.watch(values => {
-        console.log(values);
-    })
-
     const fileInputUpdateRef = useRef<any>(null);
 
     const removeFile = (index: number) => {

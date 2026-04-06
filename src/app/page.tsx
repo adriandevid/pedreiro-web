@@ -6,6 +6,8 @@ import { Application } from "@pedreiro-web/infrastructure/repository/types/appli
 import { InfrastructureComponent, InfrastructureComponentCommand, InfrastructureComponentEnvironment, InfrastructureComponentLabel, InfrastructureComponentNetwork, InfrastructureComponentPort, InfrastructureComponentVolume } from "@pedreiro-web/infrastructure/repository/types/infrastructure-component";
 import { MemoryInformations } from "@pedreiro-web/util/plataform";
 
+export const revalidate = 0;
+
 export default async function App() {
   const edges = localdatabase.prepare(`select * from edges`).all()
   const edgesResult: Edge[] = edges as Edge[];

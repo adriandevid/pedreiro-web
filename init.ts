@@ -319,6 +319,13 @@ if (!fs.existsSync(`./src/infrastructure/database/mydatabase.db`)) {
         constraint infrastructure_component_id_c foreign key (infrastructure_component_id) references infrastructure_component(id) on delete cascade
     );
 
+    create table image_registry(
+        id integer primary key autoincrement,
+        url varchar not null,
+        configuration_id integer not null,
+        constraint configuration_id_c foreign key (configuration_id) references configuration(id) on delete cascade
+    );
+
 
     insert into configuration(title, networks_web_external)
     select 'default-config-01', false

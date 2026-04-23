@@ -15,5 +15,9 @@ export type Edge = {
   source_id: string;
   target_id: string;
 }
-
+export type ImageHub = {
+  id: number;
+  url: string;
+  active: boolean;
+}
 export type ConfigurationCreate = Omit<Configuration, "id">

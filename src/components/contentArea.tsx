@@ -180,15 +180,8 @@ export default function ContentArea({
             isLoading(false);
             setIsDeploying(false);
             loadLogsOfService();
-
-<<<<<<< HEAD
-            if(stateBuildInfrastructureComponent.status == 400) {
-=======
-            if (stateBuildInfrastructureComponent.status == 400) {
->>>>>>> 1c73a50 (ajuste)
-                showNotify("Erro ao construir aplicação.");
-            }
         }
+
     }, [stateBuildInfrastructureComponent])
 
     useEffect(function () {
@@ -599,59 +592,11 @@ export default function ContentArea({
                         </div>
                     )}
                     {(activeTab === 'docker-images-hub') && (
-<<<<<<< HEAD
-                        <DockerImagesHub></DockerImagesHub>
-=======
                         <DockerImagesHub showNotify={showNotify} isLoading={isLoading}></DockerImagesHub>
->>>>>>> 1c73a50 (ajuste)
                     )}
                 </div>
 
                 {/* Console Integrado */}
-<<<<<<< HEAD
-                <div className="p-5 bg-white border-t border-slate-100">
-                    <div className="flex items-center justify-between mb-3 px-1">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Console de Eventos</span>
-                        <span className="flex items-center gap-2 text-[10px] font-bold text-cyan-500">
-                            <div className={`w-1.5 h-1.5 rounded-full bg-cyan-500 ${isDeploying ? 'animate-ping' : ''}`}></div>
-                            {isDeploying ? 'EXECUTANDO DEPLOY' : 'SISTEMA PRONTO'}
-                        </span>
-                    </div>
-                    <div className="bg-slate-900 rounded-xl p-4 font-mono text-[11px] text-slate-400 h-40 overflow-y-auto space-y-1.5 shadow-inner border border-slate-800">
-                        {isDeploying ? (
-                            <>
-                                <p className="text-cyan-400 animate-pulse"># Iniciando pipeline de deploy...</p>
-                                <p className="text-slate-300">{" >> Building images from Dockerfile"}</p>
-                                <p className="text-slate-300">{" >> Pushing to gcr.io/clouddeploy/api:v1.2"}</p>
-                                <p className="text-green-500">{" >> Image build success!"}</p>
-                            </>
-                        ) : (
-                            <>
-                                <p className="text-slate-500 opacity-80 italic"># Aguardando comandos...</p>
-                                <p className="flex gap-2"><span>[14:22:01]</span> <span className="text-slate-500">Ambiente de Produção carregado.</span></p>
-                                {
-                                    localLogOfBuild.length > 0 ?
-                                        localLogOfBuild.map((stream, indexStream) => {
-                                            return (
-                                                <div key={indexStream}>
-                                                    <p>operation: {stream.operation}</p>
-                                                    {
-                                                        stream.logs.map((log, indexLog) => (
-                                                            <div key={indexLog}><p className="flex gap-2 text-cyan-500"><span>{`[${new Date(log.time * 1000).toLocaleDateString()}]`}</span>{log.short_log}</p></div>
-                                                        ))
-                                                    }
-                                                </div>
-                                            )
-                                        }) :
-                                        <></>
-                                }
-                                {/* {(localLogOfBuild.length > 0) && <p className="flex gap-2 text-cyan-500"><span>[14:25:42]</span> {localLogOfBuild.includes("\n") ? localLogOfBuild.split("\n").map(x => (<>{x} <br/></>)): localLogOfBuild}</p>} */}
-                            </>
-                        )}
-                        <p className="text-slate-500 animate-pulse">_</p>
-                    </div>
-                </div>
-=======
                 {
                     !(activeTab === 'docker-images-hub') && (
                         <div className="p-5 bg-white border-t border-slate-100">
@@ -698,8 +643,7 @@ export default function ContentArea({
                         </div>
                     )
                 }
->>>>>>> 1c73a50 (ajuste)
-            </div>
-        </div>
+            </div >
+        </div >
     )
 }

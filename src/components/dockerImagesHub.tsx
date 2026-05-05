@@ -155,6 +155,7 @@ export default function DockerImagesHub({ showNotify, isLoading }: { showNotify:
     const loadImagesFromImageRegistry = async (username: string, password: string, url: string) => {
         await fetch(`${url}/v2/_catalog`, {
             method: "GET",
+            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Basic ${btoa(`${username}:${password}`)}`
@@ -200,7 +201,7 @@ export default function DockerImagesHub({ showNotify, isLoading }: { showNotify:
             <div className="flex flex-col gap-4 mt-4">
                 {
                     imageHubs.map((x, index) => (
-                        <div className="flex items-center flex-row gap-4">
+                        <div className="flex items-center flex-row gap-4" key={index}>
                             <div className="flex flex-row items-center bg-gray-50 p-4 rounded-lg gap-4 w-[max-content]" key={index}>
                                 <span className="text-sm">{x.url}</span>
                                 {x.active ? <span className="bg-green-200 text-green-400 px-2 rounded-sm text-sm">ativo</span> : <span className="bg-red-200 text-red-400 px-2 rounded-sm text-sm">inativo</span>}

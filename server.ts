@@ -145,7 +145,7 @@ const Docker = require("dockerode");
 const { exec } = require("child_process");
 const k8s = require('@kubernetes/client-node');
 
-const app = next({ dev: process.env.NODE_ENV !== "production" });
+const app = next({ dev: process.env.NODE_ENV !== "production", turbopack: false });
 const handler = app.getRequestHandler();
 
 const localdatabase = new Database('./src/infrastructure/database/mydatabase.db');
@@ -161,131 +161,137 @@ exec(`docker compose -f ./configuration/docker-compose.yml down`, (error: any, s
     `)
 })
 
-app.prepare().then(() => {
-    const httpServer = createServer(handler);
-    const io = new Server(httpServer);
+const httpServer = createServer(handler);
+const io = new Server(httpServer);
 
-    io.on("connection", async (socket: any) => {
-        console.log("Client connected");
+const kc = new k8s.KubeConfig();
 
-        // Load the Kubernetes configuration from the default location (~/.kube/config)
-        const kc = new k8s.KubeConfig();
-        kc.loadFromDefault({
-            clusters: [{
-                name: process.env.CLUSTER_NAME,
-                server: process.env.CLUSTER_SERVER,
-            }]
-        });
+kc.loadFromDefault({
+    clusters: [{
+        name: process.env.CLUSTER_NAME,
+        server: process.env.CLUSTER_SERVER,
+    }]
+});
 
-        const watch = new k8s.Watch(kc);
+const watch = new k8s.Watch(kc);
 
-        const uri = '/api/v1/pods';
-        const queryParams = { allowWatchBookmarks: true };
-        const callback = (phase: any, apiObj: KubernetesPod) => {
-            if (apiObj.metadata.name) {
-                console.log(apiObj.metadata.name);
+const dockerode = new Docker();
 
-                const application: any[] = localdatabase.prepare(`select * from application where name = '${apiObj.metadata.name.split("-")[0]}'`).all() as any[];
-                var shortLog = `${phase} - ${apiObj.metadata.name.split("-")[0]} - ${apiObj.status.phase}`;
+httpServer.listen(3000);
 
-                if (application.length > 0) {
-                    const streams: { id: number, operation: string, resource: string, logs: { resource: string, log: string, time: number, short_log: string }[] }[] = localdatabase.prepare(`select * from stream where resource = '${apiObj.metadata.name.split("-")[0]}' order by id DESC`).all() as any[];
-                    const lastStream = streams[0];
+async function createKs8(socket: any) {
+    const uri = '/api/v1/pods';
+    const queryParams = { allowWatchBookmarks: true };
+    const callback = (phase: any, apiObj: KubernetesPod) => {
+        if (apiObj.metadata.name) {
+            console.log(apiObj.metadata.name);
 
-                    var date = new Date();
+            const application: any[] = localdatabase.prepare(`select * from application where name = '${apiObj.metadata.name.split("-")[0]}'`).all() as any[];
+            var shortLog = `${phase} - ${apiObj.metadata.name.split("-")[0]} - ${apiObj.status.phase}`;
 
-                    if (apiObj.status.startTime) {
-                        date = new Date(apiObj.status.startTime);
-                    }
+            if (application.length > 0) {
+                const streams: { id: number, operation: string, resource: string, logs: { resource: string, log: string, time: number, short_log: string }[] }[] = localdatabase.prepare(`select * from stream where resource = '${apiObj.metadata.name.split("-")[0]}' order by id DESC`).all() as any[];
+                const lastStream = streams[0];
 
-                    var timestamp = date.getTime();
+                var date = new Date();
 
-                    localdatabase.exec(`
+                if (apiObj.status.startTime) {
+                    date = new Date(apiObj.status.startTime);
+                }
+
+                var timestamp = date.getTime();
+
+                localdatabase.exec(`
                         insert into log(resource, log, time, short_log, stream_id)
                         values ('${apiObj.metadata.name.split("-")[0]}', '${JSON.stringify(apiObj)}', ${timestamp}, '${shortLog}', ${lastStream.id})
                     `);
 
-                    if ((phase == "ADDED" || phase == "MODIFIED") && apiObj.status.phase == "Running") {
-                        io.emit(`update-state-resource`, { resource: apiObj.metadata.name.split("-")[0], state: apiObj.status.phase });
-                    } else if (phase == "DELETED" && apiObj.status.phase == "Succeeded") {
-                        io.emit(`update-state-resource`, { resource: apiObj.metadata.name.split("-")[0], state: phase });
-                    }
+                if ((phase == "ADDED" || phase == "MODIFIED") && apiObj.status.phase == "Running") {
+                    io.emit(`update-state-resource`, { resource: apiObj.metadata.name.split("-")[0], state: apiObj.status.phase });
+                } else if (phase == "DELETED" && apiObj.status.phase == "Succeeded") {
+                    io.emit(`update-state-resource`, { resource: apiObj.metadata.name.split("-")[0], state: phase });
                 }
             }
-        };
+        }
+    };
+    watch.watch(
+        uri,
+        queryParams,
+        callback,
+        // Optional: a done callback that is called when the watch connection closes
+        (err: any) => {
+            console.error('Watch connection closed:', err);
+            // Implement reconnection logic here
+        }
+    );
+}
 
-        const dockerode = new Docker();
-        const eventsOfNetwork = await dockerode.getEvents();
 
-        eventsOfNetwork.on("data", function (data: any) {
-            try {
-                var event: DockerEvent = JSON.parse(data.toString('utf8'));
+async function createWatcherDocker(socket: any) {
+    const eventsOfNetwork = await dockerode.getEvents();
 
-                if (event.Actor.Attributes.name == undefined) {
+    eventsOfNetwork.on("data", function (data: any) {
+        try {
+            var event: DockerEvent = JSON.parse(data.toString('utf8'));
+
+            if (event.Actor.Attributes.name == undefined) {
+                return;
+            }
+            const existLogs: { resource: string, log: string, time: number, short_log: string }[] = localdatabase.prepare(`select * from log where resource = '${event.Actor.Attributes.name}' and time = ${event.time}`).all() as any[];
+
+            const streams: { id: number, operation: string, resource: string, logs: { resource: string, log: string, time: number, short_log: string }[] }[] = localdatabase.prepare(`select * from stream where resource = '${event.Actor.Attributes.name}' order by id DESC`).all() as any[];
+
+            if (existLogs.length > 0 && existLogs[existLogs.length - 1].log == data.toString('utf8')) {
+                return;
+            }
+
+            const lastStream = streams[0];
+
+            if (lastStream) {
+                var shortLog = `${event.Type} - ${event.Actor.Attributes.name} - ${event.Action}`;
+
+                const logsOfStream: { resource: string, log: string, time: number, short_log: string }[] = localdatabase.prepare(`select * from log where resource = '${event.Actor.Attributes.name}' and stream_id = ${lastStream.id}`).all() as any[];
+
+                if (logsOfStream.filter(x => x.short_log == shortLog).length > 0) {
                     return;
                 }
-                const existLogs: { resource: string, log: string, time: number, short_log: string }[] = localdatabase.prepare(`select * from log where resource = '${event.Actor.Attributes.name}' and time = ${event.time}`).all() as any[];
 
-                const streams: { id: number, operation: string, resource: string, logs: { resource: string, log: string, time: number, short_log: string }[] }[] = localdatabase.prepare(`select * from stream where resource = '${event.Actor.Attributes.name}' order by id DESC`).all() as any[];
-
-                if (existLogs.length > 0 && existLogs[existLogs.length - 1].log == data.toString('utf8')) {
-                    return;
-                }
-
-                const lastStream = streams[0];
-
-                if (lastStream) {
-                    var shortLog = `${event.Type} - ${event.Actor.Attributes.name} - ${event.Action}`;
-
-                    const logsOfStream: { resource: string, log: string, time: number, short_log: string }[] = localdatabase.prepare(`select * from log where resource = '${event.Actor.Attributes.name}' and stream_id = ${lastStream.id}`).all() as any[];
-
-                    if (logsOfStream.filter(x => x.short_log == shortLog).length > 0) {
-                        return;
-                    }
-
-                    localdatabase.exec(`
+                localdatabase.exec(`
                     insert into log(resource, log, time, short_log, stream_id)
                     values ('${event.Actor.Attributes.name}', '${data.toString('utf8')}', ${event.time}, '${shortLog}', ${lastStream.id})
                 `);
 
-                    streams.forEach(stream => {
-                        const logs: { resource: string, log: string, time: number, short_log: string }[] = localdatabase.prepare(`select * from log where resource = '${stream.resource}' and stream_id = ${stream.id}`).all() as any[];
-                        stream.logs = logs
-                    })
+                streams.forEach(stream => {
+                    const logs: { resource: string, log: string, time: number, short_log: string }[] = localdatabase.prepare(`select * from log where resource = '${stream.resource}' and stream_id = ${stream.id}`).all() as any[];
+                    stream.logs = logs
+                })
 
-                    io.emit(`logs-container`, JSON.stringify(streams));
+                io.emit(`logs-container`, JSON.stringify(streams));
 
-                    if (
-                        (
-                            streams[0].operation == "start" &&
-                            streams[0].logs.filter(x => x.short_log.includes("start")).length > 0 &&
-                            !(streams[0].logs.filter(x => x.short_log.includes("die")).length > 0)
-                        ) ||
-                        (streams[0].operation == "stop" && (
-                            streams[0].logs[streams[0].logs.length - 1].short_log.includes("die") ||
-                            streams[0].logs[streams[0].logs.length - 1].short_log.includes("stop")
-                        )) ||
-                        (streams[0].operation == "down" && streams[0].logs[streams[0].logs.length - 1].short_log.includes("destroy"))
-                    ) {
-                        io.emit(`update-state-resource`, { resource: streams[0].resource });
-                    }
+                if (
+                    (
+                        streams[0].operation == "start" &&
+                        streams[0].logs.filter(x => x.short_log.includes("start")).length > 0 &&
+                        !(streams[0].logs.filter(x => x.short_log.includes("die")).length > 0)
+                    ) ||
+                    (streams[0].operation == "stop" && (
+                        streams[0].logs[streams[0].logs.length - 1].short_log.includes("die") ||
+                        streams[0].logs[streams[0].logs.length - 1].short_log.includes("stop")
+                    )) ||
+                    (streams[0].operation == "down" && streams[0].logs[streams[0].logs.length - 1].short_log.includes("destroy"))
+                ) {
+                    io.emit(`update-state-resource`, { resource: streams[0].resource });
                 }
-            } catch (ex) {
-                console.log(ex);
             }
-        })
+        } catch (ex) {
+            console.log(ex);
+        }
+    })
+}
 
-        watch.watch(
-            uri,
-            queryParams,
-            callback,
-            // Optional: a done callback that is called when the watch connection closes
-            (err: any) => {
-                console.error('Watch connection closed:', err);
-                // Implement reconnection logic here
-            }
-        );
+app.prepare().then(() => {
+    io.on("connection", async (socket: any) => {
+        createKs8(socket);
+        createWatcherDocker(socket);
     });
-
-    httpServer.listen(3000);
 });

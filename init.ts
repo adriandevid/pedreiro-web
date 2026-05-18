@@ -6,14 +6,12 @@ if (!fs.existsSync(`./configuration`)) {
     fs.mkdirSync(`./configuration`, {
         recursive: true
     });
-    console.log(`Folder ./configuration created.`);
 }
 
 if (!fs.existsSync(`./configuration/applications/`)) {
     fs.mkdirSync(`./configuration/applications/`, {
         recursive: true
     });
-    console.log(`Folder ./configuration/applications/ created.`);
 }
 
 const data = new Uint8Array(Buffer.from(`
@@ -174,6 +172,8 @@ ${ymlDocumentResult}
         `)
     })
 
+    localdatabase.close();
+
     fs.writeFile("./configuration/docker-compose.yml", new Uint8Array(Buffer.from(stringDefault)), (err: any) => {
         if (err) {
             console.log(err);
@@ -188,7 +188,6 @@ fs.writeFile(`./configuration/docker-compose.yml`, data, (err) => {
 
 if (!fs.existsSync(`./src/infrastructure/database/mydatabase.db`)) {
     const localdatabase = new Database('./src/infrastructure/database/mydatabase.db', { verbose: console.log });
-
     /*
         application:
             port => É a porta do service dentro do cluster
@@ -335,6 +334,8 @@ if (!fs.existsSync(`./src/infrastructure/database/mydatabase.db`)) {
         select 1 from configuration c where c.id = 1
     );
     `);
+
+    localdatabase.close();
 } else {
     buildApplications();
     buildInfrastructureComponents();

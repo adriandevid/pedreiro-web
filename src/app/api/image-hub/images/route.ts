@@ -10,12 +10,7 @@ export async function GET(request: NextRequest) {
     const password = searchParams.get('password');
     const registryId = searchParams.get('registry_id');
 
-
-    console.log(localdatabase.prepare(`select * from image_registry`).all());
-
     const imageHubs = localdatabase.prepare(`select * from image_registry where id = ${registryId}`).all() as ImageHub[];
-    
-    console.log(imageHubs, `select * from image_registry where id = ${registryId}`);
 
     const executeCommand = new Promise<string>((resolve, reject) => {
         exec(`curl -u ${username}:${password} ${imageHubs[0].url}/v2/_catalog`, { windowsHide: true }, (error, stdout, stderr) => {

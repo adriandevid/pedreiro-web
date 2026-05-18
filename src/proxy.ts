@@ -4,7 +4,8 @@ import { localdatabase } from "./infrastructure/database/config";
 
 export function proxy(request: NextRequest) {
     const cookieRequired = request.cookies.get("token-access");
-
+    console.log(cookieRequired);
+    
     if (cookieRequired) {
         try {
             const tokenVeryfied: { user_id: number, user_name: string, iat: number, exp: number } = jwt.verify(cookieRequired.value, process.env.JWT_SECRET!) as any;

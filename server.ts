@@ -145,7 +145,9 @@ const Docker = require("dockerode");
 const { exec } = require("child_process");
 const k8s = require('@kubernetes/client-node');
 
-const app = next({ dev: process.env.NODE_ENV !== "production", turbopack: false });
+
+//const app = next({ dev: process.env.NODE_ENV !== "production" });
+const app = next({ dev: false });
 const handler = app.getRequestHandler();
 
 const localdatabase = new Database('./src/infrastructure/database/mydatabase.db');
@@ -161,9 +163,6 @@ exec(`docker compose -f ./configuration/docker-compose.yml down`, (error: any, s
     `)
 })
 
-const httpServer = createServer(handler);
-const io = new Server(httpServer);
-
 const kc = new k8s.KubeConfig();
 
 kc.loadFromDefault({
@@ -177,9 +176,7 @@ const watch = new k8s.Watch(kc);
 
 const dockerode = new Docker();
 
-httpServer.listen(3000);
-
-async function createKs8(socket: any) {
+async function createKs8(socket: any, io: any) {
     const uri = '/api/v1/pods';
     const queryParams = { allowWatchBookmarks: true };
     const callback = (phase: any, apiObj: KubernetesPod) => {
@@ -226,8 +223,7 @@ async function createKs8(socket: any) {
     );
 }
 
-
-async function createWatcherDocker(socket: any) {
+async function createWatcherDocker(socket: any, io: any) {
     const eventsOfNetwork = await dockerode.getEvents();
 
     eventsOfNetwork.on("data", function (data: any) {
@@ -289,9 +285,18 @@ async function createWatcherDocker(socket: any) {
     })
 }
 
+console.log("1")
+
 app.prepare().then(() => {
+    const httpServer = createServer(handler);
+
+    const io = new Server(httpServer);
+
     io.on("connection", async (socket: any) => {
-        createKs8(socket);
-        createWatcherDocker(socket);
+        createKs8(socket, io);
+        createWatcherDocker(socket, io);
     });
+
+
+    httpServer.listen(3000);
 });

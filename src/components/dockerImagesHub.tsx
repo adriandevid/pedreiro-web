@@ -108,9 +108,9 @@ export default function DockerImagesHub({ showNotify, isLoading }: { showNotify:
 
             loadtable();
             showNotify(`Image registry logado com sucesso!`);
-        } else if (stateLoginImageRegistry && stateRegistryImageHub.status == 400) {
+        } else if (stateLoginImageRegistry && stateLoginImageRegistry.status == 400) {
             isLoading(false);
-            showNotify(stateRegistryImageHub.message);
+            showNotify(stateLoginImageRegistry.message);
         }
     }, [stateLoginImageRegistry])
 
@@ -249,6 +249,29 @@ export default function DockerImagesHub({ showNotify, isLoading }: { showNotify:
                     <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                         <h3 className="text-lg font-bold flex items-center gap-2">
                             <PlusCircle className="text-cyan-500" size={20} /> Excluir Registro
+                        </h3>
+                        <button onClick={() => setRegistry(undefined)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+                    </div>
+                    <form className="p-6 space-y-4">
+                        <p className="text-lg font-semibold">Deseja realmente excluir este registro?</p>
+                        <div className="flex flex-row gap-4">
+                            <button type="button" onClick={async () => { setRegistry(undefined) }} className="w-full py-3 mt-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-cyan-100 flex items-center justify-center gap-2">
+                                <X size={18} /> Não
+                            </button>
+                            <button type="button" onClick={async () => { await deleteRegistry(registry!.id) }} className="w-full py-3 mt-4 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-cyan-100 flex items-center justify-center gap-2">
+                                <Save size={18} /> Sim
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+
+            <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200" hidden={registry == undefined || showModalLoginRegistry}>
+                <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-300">
+                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                        <h3 className="text-lg font-bold flex items-center gap-2">
+                            <PlusCircle className="text-cyan-500" size={20} /> Imagens Cadastradas
                         </h3>
                         <button onClick={() => setRegistry(undefined)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
                     </div>
